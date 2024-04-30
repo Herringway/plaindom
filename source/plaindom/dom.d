@@ -631,7 +631,7 @@ class Document : DomParent {
 		}
 
 
-		struct Ele {
+		static struct Ele {
 			int type; // element or closing tag or nothing
 				/*
 					type == 0 means regular node, self-closed (element is valid)
@@ -6101,7 +6101,7 @@ int intFromHex(string hex) @safe {
 	}
 
 	/// ditto
-	struct SelectorPart {
+	static struct SelectorPart {
 		string tagNameFilter; ///.
 		string[] attributesPresent; /// [attr]
 		string[2][] attributesEqual; /// [attr=value]
@@ -6361,7 +6361,7 @@ int intFromHex(string hex) @safe {
 		}
 	}
 
-	struct ParsedNth {
+	static struct ParsedNth {
 		int multiplier;
 		int adder;
 
@@ -6562,7 +6562,7 @@ int intFromHex(string hex) @safe {
 			)
 	+/
 	/// Group: core_functionality
-	struct Selector {
+	static struct Selector {
 		SelectorComponent[] components;
 		string original;
 		/++
@@ -6636,7 +6636,7 @@ int intFromHex(string hex) @safe {
 	}
 
 	///.
-	struct SelectorComponent {
+	static struct SelectorComponent {
 		///.
 		SelectorPart[] parts;
 
@@ -7181,7 +7181,7 @@ class CssStyle {
 	Specificity originatingSpecificity; ///.
 
 	///.
-	union Specificity {
+	static union Specificity {
 		uint score; ///.
 		///.
 		struct {
@@ -7193,7 +7193,7 @@ class CssStyle {
 	}
 
 	///.
-	struct Property {
+	static struct Property {
 		bool givenExplicitly; /// this is false if for example the user said "padding" and this is "padding-left"
 		string name; ///.
 		string value; ///.
@@ -7456,7 +7456,7 @@ final class ElementStream {
 
 	private:
 
-	struct Current {
+	static struct Current {
 		Element element;
 		int childPosition;
 	}
