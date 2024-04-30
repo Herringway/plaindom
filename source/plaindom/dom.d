@@ -45,6 +45,21 @@
 +/
 module plaindom.dom;
 
+import plaindom.characterencodings;
+
+import std.algorithm.searching;
+import std.algorithm.sorting;
+import std.algorithm.comparison;
+import std.algorithm.iteration;
+import std.array;
+import std.conv;
+import std.exception;
+import std.range;
+import std.stdio;
+import std.string;
+import std.uri;
+import std.utf;
+
 // FIXME: support the css standard namespace thing in the selectors too
 
 
@@ -248,9 +263,7 @@ class Document : DomParent {
 	/// (Case-insensitive, non-strict, determine character encoding from the data.)
 
 	/// NOTE: this makes no attempt at added security, but it will try to recover from anything instead of throwing.
-	///
-	/// It is a template so it lazily imports characterencodings.
-	void parseGarbage()(string data) {
+	void parseGarbage(string data) {
 		parse(data, false, false, null);
 	}
 
@@ -268,9 +281,7 @@ class Document : DomParent {
 		parseStream(toUtf8Stream(data), caseSensitive, strict);
 	}
 
-	// this is a template so we get lazy import behavior
-	Utf8Stream handleDataEncoding()(in string rawdata, string dataEncoding, bool strict) {
-		import plaindom.characterencodings;
+	Utf8Stream handleDataEncoding(in string rawdata, string dataEncoding, bool strict) {
 		// gotta determine the data encoding. If you know it, pass it in above to skip all this.
 		if(dataEncoding is null) {
 			dataEncoding = tryToDetermineEncoding(cast(const(ubyte[])) rawdata);
@@ -448,16 +459,13 @@ class Document : DomParent {
 		But, if you want the best behavior on wild data - figuring it out from the document
 		instead of assuming - you'll probably want to change that argument to null.
 
-		This is a template so it lazily imports plaindom.characterencodings, which is required
-		to fix up data encodings.
-
 		If you are sure the encoding is good, try parseUtf8 or parseStrict to avoid the
 		dependency. If it is data from the Internet though, a random website, the encoding
 		is often a lie. This function, if dataEncoding == null, can correct for that, or
 		you can try parseGarbage. In those cases, plaindom.characterencodings is required to
 		compile.
 	*/
-	void parse()(in string rawdata, bool caseSensitive = false, bool strict = false, string dataEncoding = "UTF-8") {
+	void parse(in string rawdata, bool caseSensitive = false, bool strict = false, string dataEncoding = "UTF-8") {
 		auto data = handleDataEncoding(rawdata, dataEncoding, strict);
 		parseStream(data, caseSensitive, strict);
 	}
@@ -912,8 +920,6 @@ class Document : DomParent {
 									// these are de-facto self closed
 									selfClosed = true;
 						}
-
-						import std.algorithm.comparison;
 
 						if(strict) {
 						enforce(data[pos] == '>', format("got %s when expecting > (possible missing attribute name)\nContext:\n%s", data[pos], data[max(0, pos - 100) .. min(data.length, pos + 100)]));
@@ -1489,7 +1495,6 @@ class Document : DomParent {
 		because whitespace may be significant content in XML.
 	+/
 	string toPrettyString(bool insertComments = false, int indentationLevel = 0, string indentWith = "\t") const {
-		import std.string;
 		string s = prolog.strip;
 
 		/*
@@ -3837,7 +3842,6 @@ class Element : DomParent {
 
 		// i sort these for consistent output. might be more legible
 		// but especially it keeps it the same for diff purposes.
-		import std.algorithm : sort;
 		auto keys = sort(attributes.keys);
 		foreach(n; keys) {
 			auto v = attributes[n];
@@ -3902,7 +3906,6 @@ class Element : DomParent {
 		where.put("<");
 		where.put(tagName);
 
-		import std.algorithm : sort;
 		auto keys = sort(attributes.keys);
 		foreach(n; keys) {
 			auto v = attributes[n]; // I am sorting these for convenience with another project. order of AAs is undefined, so I'm allowed to do it.... and it is still undefined, I might change it back later.
@@ -4062,9 +4065,6 @@ unittest {
 	//assert(xml.requireSelector("script").children[0].tagName == "#raw");
 }
 
-
-
-import std.string;
 
 /* domconvenience follows { */
 
@@ -4463,14 +4463,6 @@ string camelCase(string a) {
 
 // I need to maintain compatibility with the way it is now too.
 
-import std.string;
-import std.exception;
-import std.uri;
-import std.array;
-import std.range;
-
-//import std.stdio;
-
 // tag soup works for most the crap I know now! If you have two bad closing tags back to back, it might erase one, but meh
 // that's rarer than the flipped closing tags that hack fixes so I'm ok with it. (Odds are it should be erased anyway; it's
 // most likely a typo so I say kill kill kill.
@@ -4699,8 +4691,6 @@ unittest {
 	assert(parseEntity("&zwnj;"d) == '\u200c');
 }
 
-import std.utf;
-import std.stdio;
 
 /// This takes a string of raw HTML and decodes the entities into a nice D utf-8 string.
 /// By default, it uses loose mode - it will try to return a useful string from garbage input too.
@@ -5163,7 +5153,6 @@ class TextNode : Element {
 		}
 
 		auto e = htmlEntitiesEncode(contents);
-		import std.algorithm.iteration : splitter;
 		bool first = true;
 		foreach(line; splitter(e, "\n")) {
 			if(first) {
@@ -5605,7 +5594,6 @@ class Form : Element {
 +/
 }
 
-import std.conv;
 
 /++
 	Represents a HTML table. Has some convenience methods for working with tabular data.
@@ -5992,8 +5980,6 @@ private immutable static string[] htmlInlineElements = [
 	"span", "strong", "em", "b", "i", "a"
 ];
 
-
-static import std.conv;
 
 /// helper function for decoding html entities
 int intFromHex(string hex) {
@@ -6705,7 +6691,6 @@ int intFromHex(string hex) {
 			about mutating the dom as you iterate through this.
 		+/
 		auto getMatchingElementsLazy(Element start, Element relativeTo = null) {
-			import std.algorithm.iteration;
 			return start.tree.filter!(a => this.matchesElement(a, relativeTo));
 		}
 
@@ -7572,8 +7557,7 @@ final class ElementStream {
 // unbelievable.
 // Don't use any of these in your own code. Instead, try to use phobos or roll your own, as I might kill these at any time.
 sizediff_t indexOfBytes(immutable(ubyte)[] haystack, immutable(ubyte)[] needle) {
-	static import std.algorithm;
-	auto found = std.algorithm.find(haystack, needle);
+	auto found = std.algorithm.searching.find(haystack, needle);
 	if(found.length == 0)
 		return -1;
 	return haystack.length - found.length;
