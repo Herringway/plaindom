@@ -2041,15 +2041,11 @@ class Element : DomParent {
 
 	/// Removes this element form its current parent and appends it to the given `newParent`.
 	void reparent(Element newParent) @safe
-		in {
-			assert(newParent !is null);
-			assert(parentNode !is null);
-		}
-		out {
-			assert(this.parentNode is newParent);
-			//assert(isInArray(this, newParent.children));
-		}
-	do {
+		in(newParent !is null)
+		in(parentNode !is null)
+		out(;this.parentNode is newParent)
+		//out(;isInArray(this, newParent.children))
+	{
 		parentNode.removeChild(this);
 		newParent.appendChild(this);
 	}
@@ -2066,14 +2062,10 @@ class Element : DomParent {
 		markup you aren't interested in.
 	*/
 	void stripOut() @safe
-		in {
-			assert(parentNode !is null);
-		}
-		out {
-			assert(parentNode is null);
-			assert(children.length == 0);
-		}
-	do {
+		in(parentNode !is null)
+		out(;parentNode is null)
+		out(;children.length == 0)
+	{
 		foreach(c; children)
 			c.parentNode = null; // remove the parent
 		if(children.length)
@@ -2935,10 +2927,8 @@ class Element : DomParent {
 
 	/// Removes all inner content from the tag; all child text and elements are gone.
 	void removeAllChildren() @safe
-		out {
-			assert(this.children.length == 0);
-		}
-	do {
+		out(;this.children.length == 0)
+	{
 		foreach(child; children)
 			child.parentNode = null;
 		children = null;
@@ -3145,20 +3135,16 @@ class Element : DomParent {
 		Inserts a child under this element after the element `where`.
 	+/
 	void insertChildAfter(Element child, Element where) @safe
-		in {
-			assert(child !is null);
-			assert(where !is null);
-			assert(where.parentNode is this);
-			assert(!selfClosed);
-			//assert(isInArray(where, children));
-		}
-		out {
-			assert(child.parentNode is this);
-			assert(where.parentNode is this);
-			//assert(isInArray(where, children));
-			//assert(isInArray(child, children));
-		}
-	do {
+		in(child !is null)
+		in(where !is null)
+		in(where.parentNode is this)
+		in(!selfClosed)
+		//in(isInArray(where, children))
+		out(;child.parentNode is this)
+		out(;where.parentNode is this)
+		//out(;isInArray(where, children))
+		//out(;isInArray(child, children))
+	{
 		foreach(ref i, c; children) {
 			if(c is where) {
 				i++;
@@ -3216,16 +3202,12 @@ class Element : DomParent {
 
     	/// Puts the current element first in our children list. The given element must not have a parent already.
 	Element prependChild(Element e) @safe
-		in {
-			assert(e.parentNode is null);
-			assert(!selfClosed);
-		}
-		out {
-			assert(e.parentNode is this);
-			assert(e.parentDocument is this.parentDocument);
-			assert(children[0] is e);
-		}
-	do {
+		in(e.parentNode is null)
+		in(!selfClosed)
+		out(;e.parentNode is this)
+		out(;e.parentDocument is this.parentDocument)
+		out(;children[0] is e)
+	{
 		if(auto frag = cast(DocumentFragment) e) {
 			children = e.children ~ children;
 			foreach(child; frag.children)
@@ -3367,16 +3349,16 @@ class Element : DomParent {
 		Replaces the given element with a whole group.
 	*/
 	void replaceChild(Element find, Element[] replace) @safe
+		in(find !is null)
+		in(replace !is null)
+		in(find.parentNode is this)
+		out(;find.parentNode is null)
+		out(;children.length >= replace.length)
 		in {
-			assert(find !is null);
-			assert(replace !is null);
-			assert(find.parentNode is this);
 			debug foreach(r; replace)
 				assert(r.parentNode is null);
 		}
 		out {
-			assert(find.parentNode is null);
-			assert(children.length >= replace.length);
 			debug foreach(child; children)
 				assert(child !is find);
 			debug foreach(r; replace)
@@ -3412,14 +3394,12 @@ class Element : DomParent {
 		Returns the removed element.
 	*/
 	Element removeChild(Element c) @safe
-		in {
-			assert(c !is null);
-			assert(c.parentNode is this);
-		}
+		in(c !is null)
+		in(c.parentNode is this)
+		out(;c.parentNode is null)
 		out {
 			debug foreach(child; children)
 				assert(child !is c);
-			assert(c.parentNode is null);
 		}
 	do {
 		foreach(i, e; children) {
@@ -3435,8 +3415,8 @@ class Element : DomParent {
 
 	/// This removes all the children from this element, returning the old list.
 	Element[] removeChildren() @safe
+		out(;children.length == 0)
 		out (ret) {
-			assert(children.length == 0);
 			debug foreach(r; ret)
 				assert(r.parentNode is null);
 		}
