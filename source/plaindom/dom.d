@@ -105,7 +105,7 @@ module plaindom.dom;
 	Most often though, you will not need to look at any of that data, since `Document` itself has methods like [querySelector], [appendChild], and more which will forward to the root [Element] for you.
 +/
 /// Group: core_functionality
-class Document : FileResource, DomParent {
+class Document : DomParent {
 	inout(Document) asDocument() inout { return this; }
 	inout(Element) asElement() inout { return null; }
 
@@ -174,12 +174,12 @@ class Document : FileResource, DomParent {
 
 	/// implementing the FileResource interface, useful for sending via
 	/// http automatically.
-	override @property string contentType() const {
+	@property string contentType() const {
 		return _contentType;
 	}
 
 	/// implementing the FileResource interface; it calls toString.
-	override immutable(ubyte)[] getData() const {
+	immutable(ubyte)[] getData() const {
 		return cast(immutable(ubyte)[]) this.toString();
 	}
 
@@ -4474,29 +4474,6 @@ import std.range;
 // tag soup works for most the crap I know now! If you have two bad closing tags back to back, it might erase one, but meh
 // that's rarer than the flipped closing tags that hack fixes so I'm ok with it. (Odds are it should be erased anyway; it's
 // most likely a typo so I say kill kill kill.
-
-
-/++
-	This might belong in another module, but it represents a file with a mime type and some data.
-	Document implements this interface with type = text/html (see Document.contentType for more info)
-	and data = document.toString, so you can return Documents anywhere web.d expects FileResources.
-+/
-/// Group: bonus_functionality
-interface FileResource {
-	/// the content-type of the file. e.g. "text/html; charset=utf-8" or "image/png"
-	@property string contentType() const;
-	/// the data
-	immutable(ubyte)[] getData() const;
-	/++
-		filename, return null if none
-
-		History:
-			Added December 25, 2020
-	+/
-	@property string filename() const;
-}
-
-
 
 
 ///.
