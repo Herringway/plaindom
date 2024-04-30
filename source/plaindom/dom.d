@@ -8276,10 +8276,3 @@ auto str = `<!DOCTYPE html>
 @safe unittest {
 	auto document = new Document("broken"); // just ensuring it doesn't crash
 }
-
-
-/*
-Copyright: Adam D. Ruppe, 2010 - 2023
-License:   <a href="http://www.boost.org/LICENSE_1_0.txt">Boost License 1.0</a>.
-Authors: Adam D. Ruppe, with contributions by Nick Sabalausky, Trass3r, and ketmar among others
-*/
