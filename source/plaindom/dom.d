@@ -47,22 +47,6 @@ module plaindom.dom;
 
 // FIXME: support the css standard namespace thing in the selectors too
 
-// this is only meant to be used at compile time, as a filter for opDispatch
-// lists the attributes we want to allow without the use of .attr
-bool isConvenientAttribute(string name) {
-	static immutable list = [
-		"name", "id", "href", "value",
-		"checked", "selected", "type",
-		"src", "content", "pattern",
-		"placeholder", "required", "alt",
-		"rel",
-		"method", "action", "enctype"
-	];
-	foreach(l; list)
-		if(name == l) return true;
-	return false;
-}
-
 
 // FIXME: something like <ol>spam <ol> with no closing </ol> should read the second tag as the closer in garbage mode
 // FIXME: failing to close a paragraph sometimes messes things up too
@@ -101,7 +85,6 @@ bool isConvenientAttribute(string name) {
 	---
 		auto document = Document.fromUrl("http://dlang.org/");
 	---
-	(note that this requires my [arsd.characterencodings] and [arsd.http2] libraries)
 
 	And, if you need to inspect things like `<%= foo %>` tags and comments, you can add them to the dom like this, with the [enableAddingSpecialTagsToDom]
 	and [parseUtf8] or [parseGarbage] functions:
@@ -1342,12 +1325,6 @@ class Document : FileResource, DomParent {
 	}
 
 	/// ditto
-	deprecated("use querySelectorAll instead")
-	Element[] getElementsBySelector(string selector) {
-		return root.getElementsBySelector(selector);
-	}
-
-	/// ditto
 	Element[] getElementsByTagName(string tag) {
 		return root.getElementsByTagName(tag);
 	}
@@ -1387,7 +1364,7 @@ class Document : FileResource, DomParent {
 		auto e = querySelector("head meta["~thing~"="~name~"]");
 		if(e is null)
 			return null;
-		return e.content;
+		return e.getAttribute("content");
 	}
 
 	/// Sets a meta tag in the document header. It is kinda hacky to work easily for both Facebook open graph and traditional html meta tags/
@@ -1399,7 +1376,7 @@ class Document : FileResource, DomParent {
 			e.setAttribute(thing, name);
 		}
 
-		e.content = value;
+		e.setAttribute("content", value);
 	}
 
 	///.
@@ -2380,50 +2357,50 @@ class Element : DomParent {
 						e.appendText(childInfo2);
 				break;
 				case "source":
-					e.src = childInfo;
+					e.setAttribute("src", childInfo);
 					if(childInfo2 !is null)
-						e.type = childInfo2;
+						e.setAttribute("type", childInfo2);
 				break;
 				/* regular html 4 stuff */
 				case "img":
-					e.src = childInfo;
+					e.setAttribute("src", childInfo);
 					if(childInfo2 !is null)
-						e.alt = childInfo2;
+						e.setAttribute("alt", childInfo2);
 				break;
 				case "link":
-					e.href = childInfo;
+					e.setAttribute("href", childInfo);
 					if(childInfo2 !is null)
-						e.rel = childInfo2;
+						e.setAttribute("rel", childInfo2);
 				break;
 				case "option":
 					e.innerText = childInfo;
 					if(childInfo2 !is null)
-						e.value = childInfo2;
+						e.setAttribute("value", childInfo2);
 				break;
 				case "input":
-					e.type = "hidden";
-					e.name = childInfo;
+					e.setAttribute("type", "hidden");
+					e.setAttribute("name", childInfo);
 					if(childInfo2 !is null)
-						e.value = childInfo2;
+						e.setAttribute("value", childInfo2);
 				break;
 				case "button":
 					e.innerText = childInfo;
 					if(childInfo2 !is null)
-						e.type = childInfo2;
+						e.setAttribute("type", childInfo2);
 				break;
 				case "a":
 					e.innerText = childInfo;
 					if(childInfo2 !is null)
-						e.href = childInfo2;
+						e.setAttribute("href", childInfo2);
 				break;
 				case "script":
 				case "style":
 					e.innerRawSource = childInfo;
 				break;
 				case "meta":
-					e.name = childInfo;
+					e.setAttribute("name", childInfo);
 					if(childInfo2 !is null)
-						e.content = childInfo2;
+						e.setAttribute("content", childInfo2);
 				break;
 				/* generically, assume we were passed text and perhaps class */
 				default:
@@ -2639,7 +2616,7 @@ class Element : DomParent {
 		// FIXME: I use this function a lot, and it's kinda slow
 		// not terribly slow, but not great.
 		foreach(e; tree)
-			if(e.id == id)
+			if(e.getAttribute("id") == id)
 				return e;
 		return null;
 	}
@@ -2873,35 +2850,6 @@ class Element : DomParent {
 	@property Element className(string c) {
 		setAttribute("class", c);
 		return this;
-	}
-
-	/**
-		Provides easy access to common HTML attributes, object style.
-
-		---
-		auto element = Element.make("a");
-		a.href = "cool.html"; // this is the same as a.setAttribute("href", "cool.html");
-		string where = a.href; // same as a.getAttribute("href");
-		---
-
-	*/
-	@property string opDispatch(string name)(string v = null) if(isConvenientAttribute(name)) {
-		if(v !is null)
-			setAttribute(name, v);
-		return getAttribute(name);
-	}
-
-	/**
-		Old access to attributes. Use [attrs] instead.
-
-		DEPRECATED: generally open opDispatch caused a lot of unforeseen trouble with compile time duck typing and UFCS extensions.
-		so I want to remove it. A small whitelist of attributes is still allowed, but others are not.
-
-		Instead, use element.attrs.attribute, element.attrs["attribute"],
-		or element.getAttribute("attribute")/element.setAttribute("attribute").
-	*/
-	@property string opDispatch(string name)(string v = null) if(!isConvenientAttribute(name)) {
-		static assert(0, "Don't use " ~ name ~ " direct on Element, instead use element.attrs.attributeName");
 	}
 
 	/*
@@ -4066,9 +4014,9 @@ class Element : DomParent {
 		auto holder = t.addChild("div");
 		holder.addClass("submit-holder");
 		auto i = holder.addChild("input");
-		i.type = "submit";
+		i.setAttribute("type", "submit");
 		if(label.length)
-			i.value = label;
+			i.setAttribute("value", label);
 		return holder;
 	}
 
@@ -5494,7 +5442,7 @@ class Form : Element {
 				case "input":
 					string type = e.getAttribute("type");
 					if(type is null) {
-						e.value = value;
+						e.setAttribute("value", value);
 						return;
 					}
 					switch(type) {
@@ -5506,7 +5454,7 @@ class Form : Element {
 								e.removeAttribute("checked");
 						break;
 						default:
-							e.value = value;
+							e.setAttribute("value", value);
 							return;
 					}
 				break;
@@ -5564,28 +5512,28 @@ class Form : Element {
 			switch(e.tagName) {
 				default: assert(0);
 				case "input":
-					if(e.type == "checkbox") {
-						if(e.checked)
-							return e.value.length ? e.value : "checked";
+					if(e.getAttribute("type") == "checkbox") {
+						if(e.getAttribute("checked"))
+							return e.getAttribute("value").length ? e.getAttribute("value") : "checked";
 						return "";
 					} else
-						return e.value;
+						return e.getAttribute("value");
 				case "textarea":
 					return e.innerText;
 				case "select":
 					foreach(child; e.tree) {
 						if(child.tagName != "option")
 							continue;
-						if(child.selected)
-							return child.value;
+						if(child.getAttribute("selected"))
+							return child.getAttribute("value");
 					}
 				break;
 			}
 		} else {
 			// assuming radio
 			foreach(e; eles) {
-				if(e.checked)
-					return e.value;
+				if(e.getAttribute("checked"))
+					return e.getAttribute("value");
 			}
 		}
 
@@ -5606,7 +5554,7 @@ class Form : Element {
 		bool outputted = false;
 
 		foreach(e; getElementsBySelector("[name]")) {
-			if(e.name in namesDone)
+			if(e.getAttribute("name") in namesDone)
 				continue;
 
 			if(outputted)
@@ -5614,9 +5562,9 @@ class Form : Element {
 			else
 				outputted = true;
 
-			ret ~= std.uri.encodeComponent(e.name) ~ "=" ~ std.uri.encodeComponent(getValue(e.name));
+			ret ~= std.uri.encodeComponent(e.getAttribute("name")) ~ "=" ~ std.uri.encodeComponent(getValue(e.getAttribute("name")));
 
-			namesDone[e.name] = true;
+			namesDone[e.getAttribute("name")] = true;
 		}
 
 		return ret;
@@ -5626,7 +5574,7 @@ class Form : Element {
 	Element[] getField(string name) {
 		Element[] ret;
 		foreach(e; tree) {
-			if(e.name == name)
+			if(e.getAttribute("name") == name)
 				ret ~= e;
 		}
 		return ret;
@@ -5643,9 +5591,9 @@ class Form : Element {
 	/// Adds a new INPUT field to the end of the form with the given attributes.
 	Element addInput(string name, string value, string type = "hidden") {
 		auto e = new Element(parentDocument, "input", null, true);
-		e.name = name;
-		e.value = value;
-		e.type = type;
+		e.setAttribute("name", name);
+		e.setAttribute("value", value);
+		e.setAttribute("type", type);
 
 		appendChild(e);
 
@@ -7520,107 +7468,6 @@ string cssUrl(string url) {
 	return "url(\"" ~ url ~ "\")";
 }
 
-/// This probably isn't useful, unless you're writing a browser or something like that.
-/// You might want to look at arsd.html for css macro, nesting, etc., or just use standard css
-/// as text.
-///
-/// The idea, however, is to represent a kind of CSS object model, complete with specificity,
-/// that you can apply to your documents to build the complete computedStyle object.
-class StyleSheet {
-	///.
-	CssStyle[] rules;
-
-	///.
-	this(string source) {
-		// FIXME: handle @ rules and probably could improve lexer
-		// add nesting?
-		int state;
-		string currentRule;
-		string currentValue;
-
-		string* currentThing = &currentRule;
-		foreach(c; source) {
-			handle: switch(state) {
-				default: assert(0);
-				case 0: // starting - we assume we're reading a rule
-					switch(c) {
-						case '@':
-							state = 4;
-						break;
-						case '/':
-							state = 1;
-						break;
-						case '{':
-							currentThing = &currentValue;
-						break;
-						case '}':
-							if(currentThing is &currentValue) {
-								rules ~= new CssStyle(currentRule, currentValue);
-
-								currentRule = "";
-								currentValue = "";
-
-								currentThing = &currentRule;
-							} else {
-								// idk what is going on here.
-								// check sveit.com to reproduce
-								currentRule = "";
-								currentValue = "";
-							}
-						break;
-						default:
-							(*currentThing) ~= c;
-					}
-				break;
-				case 1: // expecting *
-					if(c == '*')
-						state = 2;
-					else {
-						state = 0;
-						(*currentThing) ~= "/" ~ c;
-					}
-				break;
-				case 2: // inside comment
-					if(c == '*')
-						state = 3;
-				break;
-				case 3: // expecting / to end comment
-					if(c == '/')
-						state = 0;
-					else
-						state = 2; // it's just a comment so no need to append
-				break;
-				case 4:
-					if(c == '{')
-						state = 5;
-					if(c == ';')
-						state = 0; // just skipping import
-				break;
-				case 5:
-					if(c == '}')
-						state = 0; // skipping font face probably
-			}
-		}
-	}
-
-	/// Run through the document and apply this stylesheet to it. The computedStyle member will be accurate after this call
-	void apply(Document document) {
-		foreach(rule; rules) {
-			if(rule.originatingRule.length == 0)
-				continue; // this shouldn't happen here in a stylesheet
-			foreach(element; document.querySelectorAll(rule.originatingRule)) {
-				// note: this should be a different object than the inline style
-				// since givenExplicitly is likely destroyed here
-				auto current = element.computedStyle;
-
-				foreach(item; rule.properties)
-					current.setValue(item.name, item.value, item.specificity);
-			}
-		}
-	}
-}
-
-
 /// This is kinda private; just a little utility container for use by the ElementStream class.
 final class Stack(T) {
 	this() {
@@ -8237,19 +8084,19 @@ struct FormFieldOptions {
 		if(e.hasAttribute("required"))
 			f.isRequired = true;
 		if(e.hasAttribute("pattern"))
-			f.pattern = e.pattern;
+			f.pattern = e.getAttribute("pattern");
 		if(e.hasAttribute("placeholder"))
-			f.placeholder = e.placeholder;
+			f.placeholder = e.getAttribute("placeholder");
 		return f;
 	}
 
 	Element applyToElement(Element e) {
 		if(this.isRequired)
-			e.required = "required";
+			e.setAttribute("required", "required");
 		if(this.pattern.length)
-			e.pattern = this.pattern;
+			e.setAttribute("pattern", this.pattern);
 		if(this.placeholder.length)
-			e.placeholder = this.placeholder;
+			e.setAttribute("placeholder", this.placeholder);
 		return e;
 	}
 }
@@ -8348,11 +8195,6 @@ class Utf8Stream {
 
 		int posAdjustment;
 		+/
-}
-
-void fillForm(T)(Form form, T obj, string name) {
-	import arsd.database;
-	fillData((k, v) => form.setValue(k, v), obj, name);
 }
 
 /++
@@ -8539,9 +8381,9 @@ unittest {
 </article>`, true, true);
 
 	auto el = document.getElementById("div-03");
-	assert(el.closest("#div-02").id == "div-02");
-	assert(el.closest("div div").id == "div-03");
-	assert(el.closest("article > div").id == "div-01");
+	assert(el.closest("#div-02").getAttribute("id") == "div-02");
+	assert(el.closest("div div").getAttribute("id") == "div-03");
+	assert(el.closest("article > div").getAttribute("id") == "div-01");
 	assert(el.closest(":not(div)").tagName == "article");
 
 	assert(el.closest("p") is null);
@@ -8595,11 +8437,11 @@ immutable string html = q{
   // this should select the second table row, but...
   auto rd = doc.root.querySelector(`div.roundedbox > table > caption.boxheader + tr + tr + tr > td > a[href^=/reviews/]`);
   assert(rd !is null);
-  assert(rd.href == "/reviews/8832");
+  assert(rd.getAttribute("href") == "/reviews/8832");
 
   rd = doc.querySelector(`div.roundedbox > table > caption.boxheader + tr + tr + tr > td > a[href^=/reviews/]`);
   assert(rd !is null);
-  assert(rd.href == "/reviews/8832");
+  assert(rd.getAttribute("href") == "/reviews/8832");
 }
 
 unittest {
