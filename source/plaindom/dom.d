@@ -945,10 +945,6 @@ class Document : DomParent {
 
 						auto e = createElement(tagName);
 						e.attributes = attributes;
-						version(dom_node_indexes) {
-							if(e.dataset.nodeIndex.length == 0)
-								e.dataset.nodeIndex = to!string(&(e.attributes));
-						}
 						e.selfClosed = selfClosed;
 						e.parseAttributes();
 
@@ -2282,26 +2278,6 @@ class Element : DomParent {
 		return e;
 	}
 
-	// these are here for event handlers. Don't forget that this library never fires events.
-	// (I'm thinking about putting this in a version statement so you don't have the baggage. The instance size of this class is 56 bytes right now.)
-
-	version(dom_with_events) {
-		EventHandler[][string] bubblingEventHandlers;
-		EventHandler[][string] capturingEventHandlers;
-		EventHandler[string] defaultEventHandlers;
-
-		void addEventListener(string event, EventHandler handler, bool useCapture = false) @safe {
-			if(event.length > 2 && event[0..2] == "on")
-				event = event[2 .. $];
-
-			if(useCapture)
-				capturingEventHandlers[event] ~= handler;
-			else
-				bubblingEventHandlers[event] ~= handler;
-		}
-	}
-
-
 	// and now methods
 
 	/++
@@ -2435,9 +2411,6 @@ class Element : DomParent {
 			attributes = _attributes;
 		selfClosed = _selfClosed;
 
-		version(dom_node_indexes)
-			this.dataset.nodeIndex = to!string(&(this.attributes));
-
 		assert(_tagName.indexOf(" ") == -1);//, "<" ~ _tagName ~ "> is invalid");
 	}
 
@@ -2460,15 +2433,9 @@ class Element : DomParent {
 		// this is meant to reserve some memory. It makes a small, but consistent improvement.
 		//children.length = 8;
 		//children.length = 0;
-
-		version(dom_node_indexes)
-			this.dataset.nodeIndex = to!string(&(this.attributes));
 	}
 
-	private this(Document _parentDocument) @safe {
-		version(dom_node_indexes)
-			this.dataset.nodeIndex = to!string(&(this.attributes));
-	}
+	private this(Document _parentDocument) @safe {}
 
 
 	/* *******************************
@@ -2957,42 +2924,6 @@ class Element : DomParent {
 		return _computedStyle;
 	}
 
-	/// These properties are useless in most cases, but if you write a layout engine on top of this lib, they may be good
-	version(browser) {
-		void* expansionHook; ///ditto
-		int offsetWidth; ///ditto
-		int offsetHeight; ///ditto
-		int offsetLeft; ///ditto
-		int offsetTop; ///ditto
-		Element offsetParent; ///ditto
-		bool hasLayout; ///ditto
-		int zIndex; ///ditto
-
-		///ditto
-		int absoluteLeft() {
-			int a = offsetLeft;
-			auto p = offsetParent;
-			while(p) {
-				a += p.offsetLeft;
-				p = p.offsetParent;
-			}
-
-			return a;
-		}
-
-		///ditto
-		int absoluteTop() {
-			int a = offsetTop;
-			auto p = offsetParent;
-			while(p) {
-				a += p.offsetTop;
-				p = p.offsetParent;
-			}
-
-			return a;
-		}
-	}
-
 	// Back to the regular dom functions
 
     public:
@@ -3259,12 +3190,6 @@ class Element : DomParent {
 		}
 		out (ret) {
 			assert(e.children.length == 0);
-			// all the parentNode is this checks fail because DocumentFragments do not appear in the parent tree, they are invisible...
-			version(none)
-			debug foreach(child; ret) {
-				assert(child.parentNode is this);
-				assert(child.parentDocument is this.parentDocument);
-			}
 		}
 	do {
 		foreach(c; e.children) {
@@ -7258,7 +7183,6 @@ class CssStyle {
 	///.
 	union Specificity {
 		uint score; ///.
-		// version(little_endian)
 		///.
 		struct {
 			ubyte tags; ///.
@@ -7871,135 +7795,6 @@ immutable dchar[] availableEntitiesValues =
 '\u2128', '\u03b6', '\u03b6', '\U0001d537', '\U0001d537', '\u0436', '\u0436', '\u21dd', '\u21dd', '\U0001d56b', '\U0001d56b', '\U0001d4cf', '\U0001d4cf', '\u200d', '\u200d', '\u200c', '\u200c', ];
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// dom event support, if you want to use it
-
-/// used for DOM events
-version(dom_with_events)
-alias EventHandler = void delegate(Element handlerAttachedTo, Event event) @safe;
-
-/// This is a DOM event, like in javascript. Note that this library never fires events - it is only here for you to use if you want it.
-version(dom_with_events)
-class Event {
-	this(string eventName, Element target) @safe {
-		this.eventName = eventName;
-		this.srcElement = target;
-	}
-
-	/// Prevents the default event handler (if there is one) from being called
-	void preventDefault() @safe {
-		defaultPrevented = true;
-	}
-
-	/// Stops the event propagation immediately.
-	void stopPropagation() @safe {
-		propagationStopped = true;
-	}
-
-	bool defaultPrevented;
-	bool propagationStopped;
-	string eventName;
-
-	Element srcElement;
-	alias srcElement target;
-
-	Element relatedTarget;
-
-	int clientX;
-	int clientY;
-
-	int button;
-
-	bool isBubbling;
-
-	/// this sends it only to the target. If you want propagation, use dispatch() instead.
-	void send() @safe {
-		if(srcElement is null)
-			return;
-
-		auto e = srcElement;
-
-		if(eventName in e.bubblingEventHandlers)
-		foreach(handler; e.bubblingEventHandlers[eventName])
-			handler(e, this);
-
-		if(!defaultPrevented)
-			if(eventName in e.defaultEventHandlers)
-				e.defaultEventHandlers[eventName](e, this);
-	}
-
-	/// this dispatches the element using the capture -> target -> bubble process
-	void dispatch() @safe {
-		if(srcElement is null)
-			return;
-
-		// first capture, then bubble
-
-		Element[] chain;
-		Element curr = srcElement;
-		while(curr) {
-			auto l = curr;
-			chain ~= l;
-			curr = curr.parentNode;
-
-		}
-
-		isBubbling = false;
-
-		foreach(e; chain.retro()) {
-			if(eventName in e.capturingEventHandlers)
-			foreach(handler; e.capturingEventHandlers[eventName])
-				handler(e, this);
-
-			// the default on capture should really be to always do nothing
-
-			//if(!defaultPrevented)
-			//	if(eventName in e.defaultEventHandlers)
-			//		e.defaultEventHandlers[eventName](e.element, this);
-
-			if(propagationStopped)
-				break;
-		}
-
-		isBubbling = true;
-		if(!propagationStopped)
-		foreach(e; chain) {
-			if(eventName in e.bubblingEventHandlers)
-			foreach(handler; e.bubblingEventHandlers[eventName])
-				handler(e, this);
-
-			if(propagationStopped)
-				break;
-		}
-
-		if(!defaultPrevented)
-		foreach(e; chain) {
-				if(eventName in e.defaultEventHandlers)
-					e.defaultEventHandlers[eventName](e, this);
-		}
-	}
-}
-
 struct FormFieldOptions {
 	// usable for any
 
@@ -8055,9 +7850,6 @@ struct FormFieldOptions {
 }
 
 // this needs to look just like a string, but can expand as needed
-version(no_dom_stream)
-alias string Utf8Stream;
-else
 class Utf8Stream {
 	protected:
 		// these two should be overridden in subclasses to actually do the stream magic
