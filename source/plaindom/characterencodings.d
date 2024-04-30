@@ -41,7 +41,7 @@
 
 	This module currently makes no attempt to look at control characters.
 */
-module arsd.characterencodings;
+module plaindom.characterencodings;
 
 import std.string;
 import std.array;

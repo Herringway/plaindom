@@ -2,11 +2,6 @@
 // FIXME: https://developer.mozilla.org/en-US/docs/Web/API/Element/insertAdjacentHTML
 // FIXME: parentElement is parentNode that skips DocumentFragment etc but will be hard to work in with my compatibility...
 
-// FIXME: the scriptable list is quite arbitrary
-
-
-// xml entity references?!
-
 /++
 	This is an html DOM implementation, started with cloning
 	what the browser offers in Javascript, but going well beyond
@@ -16,7 +11,7 @@
 	this module, and much more.
 
 	---
-	import arsd.dom;
+	import plaindom;
 
 	void main() {
 		auto document = new Document("<html><p>paragraph</p></html>");
@@ -26,7 +21,7 @@
 	}
 	---
 
-	BTW: this file optionally depends on `arsd.characterencodings`, to
+	BTW: this file optionally depends on `plaindom.characterencodings`, to
 	help it correctly read files from the internet. You should be able to
 	get characterencodings.d from the same place you got this file.
 
@@ -48,15 +43,9 @@
 
 	These provide implementations of other functionality.
 +/
-module arsd.dom;
+module plaindom.dom;
 
 // FIXME: support the css standard namespace thing in the selectors too
-
-version(with_arsd_jsvar)
-	import arsd.jsvar;
-else {
-	enum scriptable = "arsd_jsvar_compatible";
-}
 
 // this is only meant to be used at compile time, as a filter for opDispatch
 // lists the attributes we want to allow without the use of .attr
@@ -139,31 +128,6 @@ class Document : FileResource, DomParent {
 
 	void processNodeWhileParsing(Element parent, Element child) {
 		parent.appendChild(child);
-	}
-
-	/++
-		Convenience method for web scraping. Requires [arsd.http2] to be
-		included in the build as well as [arsd.characterencodings].
-
-		This will download the file from the given url and create a document
-		off it, using a strict constructor or a [parseGarbage], depending on
-		the value of `strictMode`.
-	+/
-	static Document fromUrl()(string url, bool strictMode = false) {
-		import arsd.http2;
-		auto client = new HttpClient();
-
-		auto req = client.navigateTo(Uri(url), HttpVerb.GET);
-		auto res = req.waitForCompletion();
-
-		auto document = new Document();
-		if(strictMode) {
-			document.parse(cast(string) res.content, true, true, res.contentTypeCharset);
-		} else {
-			document.parseGarbage(cast(string) res.content);
-		}
-
-		return document;
 	}
 
 	/++
@@ -323,7 +287,7 @@ class Document : FileResource, DomParent {
 
 	// this is a template so we get lazy import behavior
 	Utf8Stream handleDataEncoding()(in string rawdata, string dataEncoding, bool strict) {
-		import arsd.characterencodings;
+		import plaindom.characterencodings;
 		// gotta determine the data encoding. If you know it, pass it in above to skip all this.
 		if(dataEncoding is null) {
 			dataEncoding = tryToDetermineEncoding(cast(const(ubyte[])) rawdata);
@@ -501,13 +465,13 @@ class Document : FileResource, DomParent {
 		But, if you want the best behavior on wild data - figuring it out from the document
 		instead of assuming - you'll probably want to change that argument to null.
 
-		This is a template so it lazily imports arsd.characterencodings, which is required
+		This is a template so it lazily imports plaindom.characterencodings, which is required
 		to fix up data encodings.
 
 		If you are sure the encoding is good, try parseUtf8 or parseStrict to avoid the
 		dependency. If it is data from the Internet though, a random website, the encoding
 		is often a lie. This function, if dataEncoding == null, can correct for that, or
-		you can try parseGarbage. In those cases, arsd.characterencodings is required to
+		you can try parseGarbage. In those cases, plaindom.characterencodings is required to
 		compile.
 	*/
 	void parse()(in string rawdata, bool caseSensitive = false, bool strict = false, string dataEncoding = "UTF-8") {
@@ -1344,7 +1308,6 @@ class Document : FileResource, DomParent {
 	}
 
 	/// ditto
-	@scriptable
 	Element querySelector(string selector) {
 		// see comment below on Document.querySelectorAll
 		auto s = Selector(selector);//, !loose);
@@ -1358,7 +1321,6 @@ class Document : FileResource, DomParent {
 	}
 
 	/// ditto
-	@scriptable
 	Element[] querySelectorAll(string selector) {
 		// In standards-compliant code, the document is slightly magical
 		// in that it is a pseudoelement at top level. It should actually
@@ -1386,13 +1348,11 @@ class Document : FileResource, DomParent {
 	}
 
 	/// ditto
-	@scriptable
 	Element[] getElementsByTagName(string tag) {
 		return root.getElementsByTagName(tag);
 	}
 
 	/// ditto
-	@scriptable
 	Element[] getElementsByClassName(string tag) {
 		return root.getElementsByClassName(tag);
 	}
@@ -1593,8 +1553,7 @@ class Document : FileResource, DomParent {
 /++
 	Basic parsing of HTML tag soup
 
-	If you simply make a `new Document("some string")` or use [Document.fromUrl] to automatically
-	download a page (that's function is shorthand for `new Document(arsd.http2.get(your_given_url).contentText)`),
+	If you simply make a `new Document("some string")`,
 	the Document parser will assume it is broken HTML. It will try to fix up things like charset messes, missing
 	closing tags, flipped tags, inconsistent letter cases, and other forms of commonly found HTML on the web.
 
@@ -1923,7 +1882,6 @@ class Element : DomParent {
 
 
 	/// Adds a string to the class attribute. The class attribute is used a lot in CSS.
-	@scriptable
 	Element addClass(string c) {
 		if(hasClass(c))
 			return this; // don't add it twice
@@ -1940,7 +1898,6 @@ class Element : DomParent {
 	}
 
 	/// Removes a particular class name.
-	@scriptable
 	Element removeClass(string c) {
 		if(!hasClass(c))
 			return this;
@@ -2699,7 +2656,6 @@ class Element : DomParent {
 			element.querySelector(`ns\:tag`); // the backticks are raw strings then the backslash is interpreted by querySelector
 		---
 	+/
-	@scriptable
 	Element querySelector(string selector) {
 		Selector s = Selector(selector);
 
@@ -2721,7 +2677,6 @@ class Element : DomParent {
 	}
 
 	/// If the element matches the given selector. Previously known as `matchesSelector`.
-	@scriptable
 	bool matches(string selector) {
 		/+
 		bool caseSensitiveTags = true;
@@ -2735,7 +2690,6 @@ class Element : DomParent {
 
 	/// Returns itself or the closest parent that matches the given selector, or null if none found
 	/// See_also: https://developer.mozilla.org/en-US/docs/Web/API/Element/closest
-	@scriptable
 	Element closest(string selector) {
 		Element e = this;
 		while(e !is null) {
@@ -2788,7 +2742,6 @@ class Element : DomParent {
 
 		The name `getElementsBySelector` was the original name, written back before the name `querySelector` was standardized (this library is older than you might think!), but they do the same thing..
 	*/
-	@scriptable
 	Element[] querySelectorAll(string selector) {
 		// FIXME: this function could probably use some performance attention
 		// ... but only mildly so according to the profiler in the big scheme of things; probably negligible in a big app.
@@ -2841,7 +2794,6 @@ class Element : DomParent {
 
 		Note that the returned string is decoded, so it no longer contains any xml entities.
 	*/
-	@scriptable
 	string getAttribute(string name) const {
 		if(parentDocument && parentDocument.loose)
 			name = name.toLower();
@@ -2855,7 +2807,6 @@ class Element : DomParent {
 	/**
 		Sets an attribute. Returns this for easy chaining
 	*/
-	@scriptable
 	Element setAttribute(string name, string value) {
 		if(parentDocument && parentDocument.loose)
 			name = name.toLower();
@@ -2880,7 +2831,6 @@ class Element : DomParent {
 	/**
 		Returns if the attribute exists.
 	*/
-	@scriptable
 	bool hasAttribute(string name) {
 		if(parentDocument && parentDocument.loose)
 			name = name.toLower();
@@ -2894,7 +2844,6 @@ class Element : DomParent {
 	/**
 		Removes the given attribute from the element.
 	*/
-	@scriptable
 	Element removeAttribute(string name)
 	out(ret) {
 		assert(ret is this);
@@ -3278,7 +3227,6 @@ class Element : DomParent {
 		See_Also:
 			[firstInnerText], [directText], [innerText], [appendChild]
 	+/
-	@scriptable
 	Element appendText(string text) {
 		Element e = new TextNode(parentDocument, text);
 		appendChild(e);
@@ -3308,7 +3256,6 @@ class Element : DomParent {
 
 		This is similar to `element.innerHTML += "html string";` in Javascript.
 	+/
-	@scriptable
 	Element[] appendHtml(string html) {
 		Document d = new Document("<root>" ~ html ~ "</root>");
 		return stealChildren(d.root);
@@ -3645,7 +3592,6 @@ class Element : DomParent {
 			[visibleText], which is closer to what the real `innerText`
 			does.
 	*/
-	@scriptable
 	@property string innerText() const {
 		string s;
 		foreach(child; children) {
@@ -3694,7 +3640,6 @@ class Element : DomParent {
 		Sets the inside text, replacing all children. You don't
 		have to worry about entity encoding.
 	*/
-	@scriptable
 	@property void innerText(string text) {
 		selfClosed = false;
 		Element e = new TextNode(parentDocument, text);
@@ -4044,9 +3989,6 @@ class Element : DomParent {
 		return new ElementStream(this);
 	}
 
-	// I moved these from Form because they are generally useful.
-	// Ideally, I'd put them in arsd.html and use UFCS, but that doesn't work with the opDispatch here.
-	// FIXME: add overloads for other label types...
 	/++
 		Adds a form field to this element, normally a `<input>` but `type` can also be `"textarea"`.
 
