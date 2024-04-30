@@ -121,10 +121,10 @@ import std.utf;
 +/
 /// Group: core_functionality
 class Document : DomParent {
-	inout(Document) asDocument() inout { return this; }
-	inout(Element) asElement() inout { return null; }
+	inout(Document) asDocument() inout @safe { return this; }
+	inout(Element) asElement() inout @safe { return null; }
 
-	void processNodeWhileParsing(Element parent, Element child) {
+	void processNodeWhileParsing(Element parent, Element child) @safe {
 		parent.appendChild(child);
 	}
 
@@ -138,14 +138,14 @@ class Document : DomParent {
 			[parseUtf8]
 			[parseUrl]
 	+/
-	this(string data, bool caseSensitive = false, bool strict = false) {
+	this(string data, bool caseSensitive = false, bool strict = false) @safe {
 		parseUtf8(data, caseSensitive, strict);
 	}
 
 	/**
 		Creates an empty document. It has *nothing* in it at all, ready.
 	*/
-	this() {
+	this() @safe {
 
 	}
 
@@ -163,7 +163,7 @@ class Document : DomParent {
 		You can also do things like: document["p"]["b"] though tbh I'm not sure why since the selector string can do all that anyway. Maybe
 		you could put in some kind of custom filter function tho.
 	+/
-	ElementCollection opIndex(string selector) {
+	ElementCollection opIndex(string selector) @safe {
 		auto e = ElementCollection(this.root);
 		return e[selector];
 	}
@@ -178,23 +178,23 @@ class Document : DomParent {
 	///
 	/// This may be called by parse() if it recognizes the data. Otherwise,
 	/// if you don't set it, it assumes text/html; charset=utf-8.
-	@property string contentType(string mimeType) {
+	@property string contentType(string mimeType) @safe {
 		_contentType = mimeType;
 		return _contentType;
 	}
 
 	/// implementing the FileResource interface, useful for sending via
 	/// http automatically.
-	@property string filename() const { return null; }
+	@property string filename() const @safe { return null; }
 
 	/// implementing the FileResource interface, useful for sending via
 	/// http automatically.
-	@property string contentType() const {
+	@property string contentType() const @safe {
 		return _contentType;
 	}
 
 	/// implementing the FileResource interface; it calls toString.
-	immutable(ubyte)[] getData() const {
+	immutable(ubyte)[] getData() const @safe {
 		return cast(immutable(ubyte)[]) this.toString();
 	}
 
@@ -221,7 +221,7 @@ class Document : DomParent {
 			[parseSawQuestionInstruction]
 			[parseSawBangInstruction]
 	+/
-	void enableAddingSpecialTagsToDom() {
+	void enableAddingSpecialTagsToDom() @safe {
 		parseSawComment = (string) => true;
 		parseSawAspCode = (string) => true;
 		parseSawPhpCode = (string) => true;
@@ -232,44 +232,44 @@ class Document : DomParent {
 	/// If the parser sees a html comment, it will call this callback
 	/// <!-- comment --> will call parseSawComment(" comment ")
 	/// Return true if you want the node appended to the document. It will be in a [HtmlComment] object.
-	bool delegate(string) parseSawComment;
+	bool delegate(string) @safe parseSawComment;
 
 	/// If the parser sees <% asp code... %>, it will call this callback.
 	/// It will be passed "% asp code... %" or "%= asp code .. %"
 	/// Return true if you want the node appended to the document. It will be in an [AspCode] object.
-	bool delegate(string) parseSawAspCode;
+	bool delegate(string) @safe parseSawAspCode;
 
 	/// If the parser sees <?php php code... ?>, it will call this callback.
 	/// It will be passed "?php php code... ?" or "?= asp code .. ?"
 	/// Note: dom.d cannot identify  the other php <? code ?> short format.
 	/// Return true if you want the node appended to the document. It will be in a [PhpCode] object.
-	bool delegate(string) parseSawPhpCode;
+	bool delegate(string) @safe parseSawPhpCode;
 
 	/// if it sees a <?xxx> that is not php or asp
 	/// it calls this function with the contents.
 	/// <?SOMETHING foo> calls parseSawQuestionInstruction("?SOMETHING foo")
 	/// Unlike the php/asp ones, this ends on the first > it sees, without requiring ?>.
 	/// Return true if you want the node appended to the document. It will be in a [QuestionInstruction] object.
-	bool delegate(string) parseSawQuestionInstruction;
+	bool delegate(string) @safe parseSawQuestionInstruction;
 
 	/// if it sees a <! that is not CDATA or comment (CDATA is handled automatically and comments call parseSawComment),
 	/// it calls this function with the contents.
 	/// <!SOMETHING foo> calls parseSawBangInstruction("SOMETHING foo")
 	/// Return true if you want the node appended to the document. It will be in a [BangInstruction] object.
-	bool delegate(string) parseSawBangInstruction;
+	bool delegate(string) @safe parseSawBangInstruction;
 
 	/// Given the kind of garbage you find on the Internet, try to make sense of it.
 	/// Equivalent to document.parse(data, false, false, null);
 	/// (Case-insensitive, non-strict, determine character encoding from the data.)
 
 	/// NOTE: this makes no attempt at added security, but it will try to recover from anything instead of throwing.
-	void parseGarbage(string data) {
+	void parseGarbage(string data) @safe {
 		parse(data, false, false, null);
 	}
 
 	/// Parses well-formed UTF-8, case-sensitive, XML or XHTML
 	/// Will throw exceptions on things like unclosed tags.
-	void parseStrict(string data, bool pureXmlMode = false) {
+	void parseStrict(string data, bool pureXmlMode = false) @safe {
 		parseStream(toUtf8Stream(data), true, true, pureXmlMode);
 	}
 
@@ -277,14 +277,14 @@ class Document : DomParent {
 	/// tag soup, but does NOT try to correct bad character encodings.
 	///
 	/// They will still throw an exception.
-	void parseUtf8(string data, bool caseSensitive = false, bool strict = false) {
+	void parseUtf8(string data, bool caseSensitive = false, bool strict = false) @safe {
 		parseStream(toUtf8Stream(data), caseSensitive, strict);
 	}
 
-	Utf8Stream handleDataEncoding(in string rawdata, string dataEncoding, bool strict) {
+	Utf8Stream handleDataEncoding(in string rawdata, string dataEncoding, bool strict) @safe {
 		// gotta determine the data encoding. If you know it, pass it in above to skip all this.
 		if(dataEncoding is null) {
-			dataEncoding = tryToDetermineEncoding(cast(const(ubyte[])) rawdata);
+			dataEncoding = tryToDetermineEncoding(cast(immutable(ubyte[])) rawdata);
 			// it can't tell... probably a random 8 bit encoding. Let's check the document itself.
 			// Now, XML and HTML can both list encoding in the document, but we can't really parse
 			// it here without changing a lot of code until we know the encoding. So I'm going to
@@ -376,7 +376,7 @@ class Document : DomParent {
 	}
 
 	private
-	Utf8Stream toUtf8Stream(in string rawdata) {
+	Utf8Stream toUtf8Stream(in string rawdata) @safe {
 		string data = rawdata;
 		static if(is(Utf8Stream == string))
 			return data;
@@ -465,13 +465,13 @@ class Document : DomParent {
 		you can try parseGarbage. In those cases, plaindom.characterencodings is required to
 		compile.
 	*/
-	void parse(in string rawdata, bool caseSensitive = false, bool strict = false, string dataEncoding = "UTF-8") {
+	void parse(in string rawdata, bool caseSensitive = false, bool strict = false, string dataEncoding = "UTF-8") @safe {
 		auto data = handleDataEncoding(rawdata, dataEncoding, strict);
 		parseStream(data, caseSensitive, strict);
 	}
 
 	// note: this work best in strict mode, unless data is just a simple string wrapper
-	void parseStream(Utf8Stream data, bool caseSensitive = false, bool strict = false, bool pureXmlMode = false) {
+	void parseStream(Utf8Stream data, bool caseSensitive = false, bool strict = false, bool pureXmlMode = false) @safe {
 		// FIXME: this parser could be faster; it's in the top ten biggest tree times according to the profiler
 		// of my big app.
 
@@ -644,7 +644,7 @@ class Document : DomParent {
 			string payload; // for type == 1
 		}
 		// recursively read a tag
-		Ele readElement(string[] parentChain = null) {
+		Ele readElement(string[] parentChain = null) @safe {
 			// FIXME: this is the slowest function in this module, by far, even in strict mode.
 			// Loose mode should perform decently, but strict mode is the important one.
 			if(!strict && parentChain is null)
@@ -911,7 +911,7 @@ class Document : DomParent {
 					string tagName = readTagName();
 					string[string] attributes;
 
-					Ele addTag(bool selfClosed) {
+					Ele addTag(bool selfClosed) @safe {
 						if(selfClosed)
 							pos++;
 						else {
@@ -1233,7 +1233,7 @@ class Document : DomParent {
 	/* end massive parse function */
 
 	/// Gets the <title> element's innerText, if one exists
-	@property string title() {
+	@property string title() @safe {
 		bool doesItMatch(Element e) {
 			return (e.tagName == "title");
 		}
@@ -1245,7 +1245,7 @@ class Document : DomParent {
 	}
 
 	/// Sets the title of the page, creating a <title> element if needed.
-	@property void title(string t) {
+	@property void title(string t) @safe {
 		bool doesItMatch(Element e) {
 			return (e.tagName == "title");
 		}
@@ -1265,7 +1265,7 @@ class Document : DomParent {
 
 	// FIXME: would it work to alias root this; ???? might be a good idea
 	/// These functions all forward to the root element. See the documentation in the Element class.
-	Element getElementById(string id) {
+	Element getElementById(string id) @safe {
 		return root.getElementById(id);
 	}
 
@@ -1278,7 +1278,7 @@ class Document : DomParent {
 	}
 
 	/// ditto
-	final SomeElementType requireSelector(SomeElementType = Element)(string selector, string file = __FILE__, size_t line = __LINE__)
+	final SomeElementType requireSelector(SomeElementType = Element)(string selector, string file = __FILE__, size_t line = __LINE__) @safe
 		if( is(SomeElementType : Element))
 		out(ret) { assert(ret !is null); }
 	do {
@@ -1297,7 +1297,7 @@ class Document : DomParent {
 	}
 
 	/// ditto
-	Element querySelector(string selector) {
+	Element querySelector(string selector) @safe {
 		// see comment below on Document.querySelectorAll
 		auto s = Selector(selector);//, !loose);
 		foreach(ref comp; s.components)
@@ -1310,7 +1310,7 @@ class Document : DomParent {
 	}
 
 	/// ditto
-	Element[] querySelectorAll(string selector) {
+	Element[] querySelectorAll(string selector) @safe {
 		// In standards-compliant code, the document is slightly magical
 		// in that it is a pseudoelement at top level. It should actually
 		// match the root as one of its children.
@@ -1331,17 +1331,17 @@ class Document : DomParent {
 	}
 
 	/// ditto
-	Element[] getElementsByTagName(string tag) {
+	Element[] getElementsByTagName(string tag) @safe {
 		return root.getElementsByTagName(tag);
 	}
 
 	/// ditto
-	Element[] getElementsByClassName(string tag) {
+	Element[] getElementsByClassName(string tag) @safe {
 		return root.getElementsByClassName(tag);
 	}
 
 	/** FIXME: btw, this could just be a lazy range...... */
-	Element getFirstElementByTagName(string tag) {
+	Element getFirstElementByTagName(string tag) @safe {
 		if(loose)
 			tag = tag.toLower();
 		bool doesItMatch(Element e) {
@@ -1356,7 +1356,7 @@ class Document : DomParent {
 		History:
 			`body` alias added February 26, 2024
 	+/
-	Element mainBody() {
+	Element mainBody() @safe {
 		return getFirstElementByTagName("body");
 	}
 
@@ -1365,7 +1365,7 @@ class Document : DomParent {
 
 	/// this uses a weird thing... it's [name=] if no colon and
 	/// [property=] if colon
-	string getMeta(string name) {
+	string getMeta(string name) @safe {
 		string thing = name.indexOf(":") == -1 ? "name" : "property";
 		auto e = querySelector("head meta["~thing~"="~name~"]");
 		if(e is null)
@@ -1374,7 +1374,7 @@ class Document : DomParent {
 	}
 
 	/// Sets a meta tag in the document header. It is kinda hacky to work easily for both Facebook open graph and traditional html meta tags/
-	void setMeta(string name, string value) {
+	void setMeta(string name, string value) @safe {
 		string thing = name.indexOf(":") == -1 ? "name" : "property";
 		auto e = querySelector("head meta["~thing~"="~name~"]");
 		if(e is null) {
@@ -1386,12 +1386,7 @@ class Document : DomParent {
 	}
 
 	///.
-	Form[] forms() {
-		return cast(Form[]) getElementsByTagName("form");
-	}
-
-	///.
-	Form createForm()
+	Form createForm() @safe
 		out(ret) {
 			assert(ret !is null);
 		}
@@ -1400,7 +1395,7 @@ class Document : DomParent {
 	}
 
 	///.
-	Element createElement(string name) {
+	Element createElement(string name) @safe {
 		if(loose)
 			name = name.toLower();
 
@@ -1412,18 +1407,18 @@ class Document : DomParent {
 	}
 
 	///.
-	Element createFragment() {
+	Element createFragment() @safe {
 		return new DocumentFragment(this);
 	}
 
 	///.
-	Element createTextNode(string content) {
+	Element createTextNode(string content) @safe {
 		return new TextNode(this, content);
 	}
 
 
 	///.
-	Element findFirst(bool delegate(Element) doesItMatch) {
+	Element findFirst(bool delegate(Element) @safe doesItMatch) @safe {
 		if(root is null)
 			return null;
 		Element result;
@@ -1448,7 +1443,7 @@ class Document : DomParent {
 	}
 
 	///.
-	void clear() {
+	void clear() @safe {
 		root = null;
 		loose = false;
 	}
@@ -1460,7 +1455,7 @@ class Document : DomParent {
 		Returns or sets the string before the root element. This is, for example,
 		`<!DOCTYPE html>\n` or similar.
 	+/
-	@property string prolog() const {
+	@property string prolog() const @safe {
 		// if the user explicitly changed it, do what they want
 		// or if we didn't keep/find stuff from the document itself,
 		// we'll use the builtin one as a default.
@@ -1474,7 +1469,7 @@ class Document : DomParent {
 	}
 
 	/// ditto
-	void setProlog(string d) {
+	void setProlog(string d) @safe {
 		_prolog = d;
 		prologWasSet = true;
 	}
@@ -1484,7 +1479,7 @@ class Document : DomParent {
 		they are discarded. If you want to add them to the file, loop over that and append it yourself
 		(but remember xml isn't supposed to have anything after the root element).
 	+/
-	override string toString() const {
+	override string toString() const @safe {
 		return prolog ~ root.toString();
 	}
 
@@ -1494,7 +1489,7 @@ class Document : DomParent {
 		Do NOT use for anything other than eyeball debugging,
 		because whitespace may be significant content in XML.
 	+/
-	string toPrettyString(bool insertComments = false, int indentationLevel = 0, string indentWith = "\t") const {
+	string toPrettyString(bool insertComments = false, int indentationLevel = 0, string indentWith = "\t") const @safe {
 		string s = prolog.strip;
 
 		/*
@@ -1524,9 +1519,9 @@ class Document : DomParent {
 
 
 	// what follows are for mutation events that you can observe
-	void delegate(DomMutationEvent)[] eventObservers;
+	void delegate(DomMutationEvent) @safe[] eventObservers;
 
-	void dispatchMutationEvent(DomMutationEvent e) {
+	void dispatchMutationEvent(DomMutationEvent e) @safe {
 		foreach(o; eventObservers)
 			o(e);
 	}
@@ -1542,7 +1537,7 @@ class Document : DomParent {
 	It isn't exactly the same as what a HTML5 web browser does in all cases, but it usually it, and where it
 	disagrees, it is still usually good enough (but sometimes a bug).
 +/
-unittest {
+@safe unittest {
 	auto document = new Document(`<html><body><p>hello <P>there`);
 	// this will automatically try to normalize the html and fix up broken tags, etc
 	// so notice how it added the missing closing tags here and made them all lower case
@@ -1561,7 +1556,7 @@ unittest {
 	(note it is not a full *validator*, just a well-formedness checker. Full validation is a lot more work for very
 	little benefit in my experience, so I stopped here.)
 +/
-unittest {
+@safe unittest {
 	try {
 		auto document = new Document(`<html><body><p>hello <P>there`, true, true); // turns on strict and case sensitive mode to ctor
 		assert(0); // never reached, the constructor will throw because strict mode is turned on
@@ -1585,7 +1580,7 @@ unittest {
 	Additionally, you can add special tags to be read like `<script>` to preserve its insides for future processing
 	via the `.innerRawSource` member.
 +/
-unittest {
+@safe unittest {
 	auto document = new Document; // construct an empty thing first
 	document.enableAddingSpecialTagsToDom(); // add the special tags like <% ... %> etc
 	document.rawSourceElements ~= "embedded-plaintext"; // tell it we want a custom
@@ -1641,7 +1636,7 @@ unittest {
 
 	This is not exactly standards compliant completely in and out thanks to it doing some transformations... but I find it more useful - it reads the data in consistently and writes it out consistently, both in ways that work well for interop. Take a look:
 +/
-unittest {
+@safe unittest {
 	auto document = new Document(`<html>
 		<p>¤ is a non-ascii character. It will be converted to a numbered entity in string output.</p>
 		<p>&curren; is the same thing, but as a named entity. It also will be changed to a numbered entity in string output.</p>
@@ -1677,12 +1672,12 @@ unittest {
 	It is awkward - again, dom.d's whole design is based on building the dom tree, but you can do it if you're willing to
 	subclass a little and trust the garbage collector. Here's how.
 +/
-unittest {
+@safe unittest {
 	bool encountered;
 	class StreamDocument : Document {
 		// the normal behavior for this function is to `parent.appendChild(child)`
 		// but we can override to read it as it is processed and not append it
-		override void processNodeWhileParsing(Element parent, Element child) {
+		override void processNodeWhileParsing(Element parent, Element child) @safe {
 			if(child.tagName == "bar")
 				encountered = true;
 			// note that each element's object is created but then discarded as garbage.
@@ -1710,13 +1705,13 @@ unittest {
 
 	For more information, see [XmlDocument].
 +/
-unittest {
+@safe unittest {
 	auto xml = new XmlDocument(`<my-stuff>hello</my-stuff>`);
 }
 
 interface DomParent {
-	inout(Document) asDocument() inout;
-	inout(Element) asElement() inout;
+	inout(Document) asDocument() inout @safe;
+	inout(Element) asElement() inout @safe;
 }
 
 /++
@@ -1724,12 +1719,12 @@ interface DomParent {
 +/
 /// Group: core_functionality
 class Element : DomParent {
-	inout(Document) asDocument() inout { return null; }
-	inout(Element) asElement() inout { return this; }
+	inout(Document) asDocument() inout @safe { return null; }
+	inout(Element) asElement() inout @safe { return this; }
 
 	/// Returns a collection of elements by selector.
 	/// See: [Document.opIndex]
-	ElementCollection opIndex(string selector) {
+	ElementCollection opIndex(string selector) @safe {
 		auto e = ElementCollection(this);
 		return e[selector];
 	}
@@ -1740,7 +1735,7 @@ class Element : DomParent {
 		Be aware that child nodes include text nodes, including
 		whitespace-only nodes.
 	+/
-	Element opIndex(size_t index) {
+	Element opIndex(size_t index) @safe {
 		if(index >= children.length)
 			return null;
 		return this.children[index];
@@ -1790,7 +1785,7 @@ class Element : DomParent {
 
 
 	/// get all the classes on this element
-	@property string[] classes() const {
+	@property string[] classes() const @safe {
 		// FIXME: remove blank names
 		auto cs = split(className, " ");
 		foreach(ref c; cs)
@@ -1803,27 +1798,27 @@ class Element : DomParent {
 	+/
 	static struct ClassListHelper {
 		Element this_;
-		this(inout(Element) this_) inout {
+		this(inout(Element) this_) inout @safe {
 			this.this_ = this_;
 		}
 
 		///
-		bool contains(string cn) const {
+		bool contains(string cn) const @safe {
 			return this_.hasClass(cn);
 		}
 
 		///
-		void add(string cn) {
+		void add(string cn) @safe {
 			this_.addClass(cn);
 		}
 
 		///
-		void remove(string cn) {
+		void remove(string cn) @safe {
 			this_.removeClass(cn);
 		}
 
 		///
-		void toggle(string cn) {
+		void toggle(string cn) @safe {
 			if(contains(cn))
 				remove(cn);
 			else
@@ -1844,12 +1839,12 @@ class Element : DomParent {
 		History:
 			Added August 25, 2022
 	+/
-	@property inout(ClassListHelper) classList() inout {
+	@property inout(ClassListHelper) classList() inout @safe {
 		return inout(ClassListHelper)(this);
 	}
 	// FIXME: classList is supposed to whitespace and duplicates when you use it. need to test.
 
-	unittest {
+	@safe unittest {
 		Element element = Element.make("div");
 		element.classList.add("foo");
 		assert(element.classList.contains("foo"));
@@ -1864,7 +1859,7 @@ class Element : DomParent {
 
 
 	/// Adds a string to the class attribute. The class attribute is used a lot in CSS.
-	Element addClass(string c) {
+	Element addClass(string c) @safe {
 		if(hasClass(c))
 			return this; // don't add it twice
 
@@ -1880,7 +1875,7 @@ class Element : DomParent {
 	}
 
 	/// Removes a particular class name.
-	Element removeClass(string c) {
+	Element removeClass(string c) @safe {
 		if(!hasClass(c))
 			return this;
 		string n;
@@ -1898,7 +1893,7 @@ class Element : DomParent {
 	}
 
 	/// Returns whether the given class appears in this element.
-	bool hasClass(string c) const {
+	bool hasClass(string c) const @safe {
 		string cn = className;
 
 		auto idx = cn.indexOf(c);
@@ -1947,7 +1942,7 @@ class Element : DomParent {
 		div.addChild("div", Html("<p>children of the div</p>"));
 		---
 	+/
-	Element addChild(string tagName, string childInfo = null, string childInfo2 = null)
+	Element addChild(string tagName, string childInfo = null, string childInfo2 = null) @safe
 		in {
 			assert(tagName !is null);
 		}
@@ -1963,12 +1958,12 @@ class Element : DomParent {
 	}
 
 	/// ditto
-	Element addChild(Element e) {
+	Element addChild(Element e) @safe {
 		return this.appendChild(e);
 	}
 
 	/// ditto
-	Element addChild(string tagName, Element firstChild, string info2 = null)
+	Element addChild(string tagName, Element firstChild, string info2 = null) @safe
 	in {
 		assert(firstChild !is null);
 	}
@@ -1988,7 +1983,7 @@ class Element : DomParent {
 	}
 
 	/// ditto
-	Element addChild(string tagName, in Html innerHtml, string info2 = null)
+	Element addChild(string tagName, in Html innerHtml, string info2 = null) @safe
 	in {
 	}
 	out(ret) {
@@ -2009,7 +2004,7 @@ class Element : DomParent {
 	///
 	/// Between this, addChild, and parentNode, you can build a tree as a single expression.
 	/// See_Also: [addChild]
-	Element addSibling(string tagName, string childInfo = null, string childInfo2 = null)
+	Element addSibling(string tagName, string childInfo = null, string childInfo2 = null) @safe
 		in {
 			assert(tagName !is null);
 			assert(parentNode !is null);
@@ -2024,7 +2019,7 @@ class Element : DomParent {
 	}
 
 	/// ditto
-	Element addSibling(Element e) {
+	Element addSibling(Element e) @safe {
 		return parentNode.insertAfter(this, e);
 	}
 
@@ -2043,13 +2038,13 @@ class Element : DomParent {
 	}
 
 	/// Appends the list of children to this element.
-	void appendChildren(Element[] children) {
+	void appendChildren(Element[] children) @safe {
 		foreach(ele; children)
 			appendChild(ele);
 	}
 
 	/// Removes this element form its current parent and appends it to the given `newParent`.
-	void reparent(Element newParent)
+	void reparent(Element newParent) @safe
 		in {
 			assert(newParent !is null);
 			assert(parentNode !is null);
@@ -2074,7 +2069,7 @@ class Element : DomParent {
 		The idea here is to make it easy to get rid of garbage
 		markup you aren't interested in.
 	*/
-	void stripOut()
+	void stripOut() @safe
 		in {
 			assert(parentNode !is null);
 		}
@@ -2094,7 +2089,7 @@ class Element : DomParent {
 
 	/// shorthand for `this.parentNode.removeChild(this)` with `parentNode` `null` check
 	/// if the element already isn't in a tree, it does nothing.
-	Element removeFromTree()
+	Element removeFromTree() @safe
 		in {
 
 		}
@@ -2118,7 +2113,7 @@ class Element : DomParent {
 		Given: `<b>cool</b>`, if you call `b.wrapIn(new Link("site.com", "my site is "));`
 		you'll end up with: `<a href="site.com">my site is <b>cool</b></a>`.
 	+/
-	Element wrapIn(Element what)
+	Element wrapIn(Element what) @safe
 		in {
 			assert(what !is null);
 		}
@@ -2134,7 +2129,7 @@ class Element : DomParent {
 	}
 
 	/// Replaces this element with something else in the tree.
-	Element replaceWith(Element e)
+	Element replaceWith(Element e) @safe
 	in {
 		assert(this.parentNode !is null);
 	}
@@ -2152,7 +2147,7 @@ class Element : DomParent {
 
 		See_also: [directText], [innerText]
 	*/
-	string firstInnerText() const {
+	string firstInnerText() const @safe {
 		string s;
 		foreach(child; children) {
 			if(child.nodeType != NodeType.Text)
@@ -2174,7 +2169,7 @@ class Element : DomParent {
 
 		See_also: [firstInnerText], [innerText]
 	*/
-	@property string directText() {
+	@property string directText() @safe {
 		string ret;
 		foreach(e; children) {
 			if(e.nodeType == NodeType.Text)
@@ -2196,7 +2191,7 @@ class Element : DomParent {
 
 		So, given `<div><img />text here</div>`, it will keep the `<img />`, and replace the `text here`.
 	*/
-	@property void directText(string text) {
+	@property void directText(string text) @safe {
 		foreach(e; children) {
 			if(e.nodeType == NodeType.Text) {
 				auto it = cast(TextNode) e;
@@ -2210,12 +2205,12 @@ class Element : DomParent {
 
 	// do nothing, this is primarily a virtual hook
 	// for links and forms
-	void setValue(string field, string value) { }
+	void setValue(string field, string value) @safe { }
 
 
 	// this is a thing so i can remove observer support if it gets slow
 	// I have not implemented all these yet
-	private void sendObserverEvent(DomMutationOperations operation, string s1 = null, string s2 = null, Element r = null, Element r2 = null) {
+	private void sendObserverEvent(DomMutationOperations operation, string s1 = null, string s2 = null, Element r = null, Element r2 = null) @safe {
 		if(parentDocument is null) return;
 		DomMutationEvent me;
 		me.operation = operation;
@@ -2246,7 +2241,7 @@ class Element : DomParent {
 
 	/// Get the parent Document object that contains this element.
 	/// It may be null, so remember to check for that.
-	@property inout(Document) parentDocument() inout {
+	@property inout(Document) parentDocument() inout @trusted {
 		if(this.parent_ is null)
 			return null;
 		auto p = cast() this.parent_.asElement;
@@ -2260,18 +2255,18 @@ class Element : DomParent {
 		return cast(inout) prev.parent_.asDocument;
 	}
 
-	/*deprecated*/ @property void parentDocument(Document doc) {
+	/*deprecated*/ @property void parentDocument(Document doc) @safe {
 		parent_ = doc;
 	}
 
 	/// Returns the parent node in the tree this element is attached to.
-	inout(Element) parentNode() inout {
+	inout(Element) parentNode() inout @safe {
 		if(parent_ is null)
 			return null;
 
 		auto p = parent_.asElement;
 
-		if(cast(DocumentFragment) p) {
+		if(cast(inout(DocumentFragment)) p) {
 			if(p.parent_ is null)
 				return null;
 			else
@@ -2282,7 +2277,7 @@ class Element : DomParent {
 	}
 
 	//protected
-	Element parentNode(Element e) {
+	Element parentNode(Element e) @safe {
 		parent_ = e;
 		return e;
 	}
@@ -2295,7 +2290,7 @@ class Element : DomParent {
 		EventHandler[][string] capturingEventHandlers;
 		EventHandler[string] defaultEventHandlers;
 
-		void addEventListener(string event, EventHandler handler, bool useCapture = false) {
+		void addEventListener(string event, EventHandler handler, bool useCapture = false) @safe {
 			if(event.length > 2 && event[0..2] == "on")
 				event = event[2 .. $];
 
@@ -2319,7 +2314,7 @@ class Element : DomParent {
 		See_Also:
 			[addChild], [addSibling]
 	+/
-	static Element make(string tagName, string childInfo = null, string childInfo2 = null, const string[] selfClosedElements = htmlSelfClosedElements) {
+	static Element make(string tagName, string childInfo = null, string childInfo2 = null, const string[] selfClosedElements = htmlSelfClosedElements) @safe {
 		bool selfClosed = tagName.isInArray(selfClosedElements);
 
 		Element e;
@@ -2418,7 +2413,7 @@ class Element : DomParent {
 	}
 
 	/// ditto
-	static Element make(string tagName, in Html innerHtml, string childInfo2 = null) {
+	static Element make(string tagName, in Html innerHtml, string childInfo2 = null) @safe {
 		// FIXME: childInfo2 is ignored when info1 is null
 		auto m = Element.make(tagName, "not null"[0..0], childInfo2);
 		m.innerHTML = innerHtml.source;
@@ -2426,7 +2421,7 @@ class Element : DomParent {
 	}
 
 	/// ditto
-	static Element make(string tagName, Element child, string childInfo2 = null) {
+	static Element make(string tagName, Element child, string childInfo2 = null) @safe {
 		auto m = Element.make(tagName, cast(string) null, childInfo2);
 		m.appendChild(child);
 		return m;
@@ -2434,7 +2429,7 @@ class Element : DomParent {
 
 
 	/// Generally, you don't want to call this yourself - use Element.make or document.createElement instead.
-	this(Document _parentDocument, string _tagName, string[string] _attributes = null, bool _selfClosed = false) {
+	this(Document _parentDocument, string _tagName, string[string] _attributes = null, bool _selfClosed = false) @safe {
 		tagName = _tagName;
 		if(_attributes !is null)
 			attributes = _attributes;
@@ -2456,7 +2451,7 @@ class Element : DomParent {
 			[Document.createElement], it will use the list set for the current document. Otherwise, you can pass
 			something here if you like.
 	+/
-	this(string _tagName, string[string] _attributes = null, const string[] selfClosedElements = htmlSelfClosedElements) {
+	this(string _tagName, string[string] _attributes = null, const string[] selfClosedElements = htmlSelfClosedElements) @safe {
 		tagName = _tagName;
 		if(_attributes !is null)
 			attributes = _attributes;
@@ -2470,7 +2465,7 @@ class Element : DomParent {
 			this.dataset.nodeIndex = to!string(&(this.attributes));
 	}
 
-	private this(Document _parentDocument) {
+	private this(Document _parentDocument) @safe {
 		version(dom_node_indexes)
 			this.dataset.nodeIndex = to!string(&(this.attributes));
 	}
@@ -2482,18 +2477,18 @@ class Element : DomParent {
 
 	/// Returns the first child of this element. If it has no children, returns null.
 	/// Remember, text nodes are children too.
-	@property Element firstChild() {
+	@property Element firstChild() @safe {
 		return children.length ? children[0] : null;
 	}
 
 	/// Returns the last child of the element, or null if it has no children. Remember, text nodes are children too.
-	@property Element lastChild() {
+	@property Element lastChild() @safe {
 		return children.length ? children[$ - 1] : null;
 	}
 
 	// FIXME UNTESTED
 	/// the next or previous element you would encounter if you were reading it in the source. May be a text node or other special non-tag object if you enabled them.
-	Element nextInSource() {
+	Element nextInSource() @safe {
 		auto n = firstChild;
 		if(n is null)
 			n = nextSibling();
@@ -2508,7 +2503,7 @@ class Element : DomParent {
 	}
 
 	/// ditto
-	Element previousInSource() {
+	Element previousInSource() @safe {
 		auto p = previousSibling;
 		if(p is null) {
 			auto par = parentNode;
@@ -2527,19 +2522,19 @@ class Element : DomParent {
 
 		Please note it may return `null`.
 	+/
-	@property Element previousElementSibling() {
+	@property Element previousElementSibling() @safe {
 		return previousSibling("*");
 	}
 
 	/// ditto
-	@property Element nextElementSibling() {
+	@property Element nextElementSibling() @safe {
 		return nextSibling("*");
 	}
 
 	/++
 		Returns the next or previous sibling matching the `tagName` filter. The default filter of `null` will return the first sibling it sees, even if it is a comment or text node, or anything else. A filter of `"*"` will match any tag with a name. Otherwise, the string must match the [tagName] of the sibling you want to find.
 	+/
-	@property Element previousSibling(string tagName = null) {
+	@property Element previousSibling(string tagName = null) @safe {
 		if(this.parentNode is null)
 			return null;
 		Element ps = null;
@@ -2556,7 +2551,7 @@ class Element : DomParent {
 	}
 
 	/// ditto
-	@property Element nextSibling(string tagName = null) {
+	@property Element nextSibling(string tagName = null) @safe {
 		if(this.parentNode is null)
 			return null;
 		Element ns = null;
@@ -2617,7 +2612,7 @@ class Element : DomParent {
 	/++
 		Searches this element and the tree of elements under it for one matching the given `id` attribute.
 	+/
-	Element getElementById(string id) {
+	Element getElementById(string id) @safe {
 		// FIXME: I use this function a lot, and it's kinda slow
 		// not terribly slow, but not great.
 		foreach(e; tree)
@@ -2638,7 +2633,7 @@ class Element : DomParent {
 			element.querySelector(`ns\:tag`); // the backticks are raw strings then the backslash is interpreted by querySelector
 		---
 	+/
-	Element querySelector(string selector) {
+	Element querySelector(string selector) @safe {
 		Selector s = Selector(selector);
 
 		foreach(ref comp; s.components)
@@ -2659,7 +2654,7 @@ class Element : DomParent {
 	}
 
 	/// If the element matches the given selector. Previously known as `matchesSelector`.
-	bool matches(string selector) {
+	bool matches(string selector) @safe {
 		/+
 		bool caseSensitiveTags = true;
 		if(parentDocument && parentDocument.loose)
@@ -2672,7 +2667,7 @@ class Element : DomParent {
 
 	/// Returns itself or the closest parent that matches the given selector, or null if none found
 	/// See_also: https://developer.mozilla.org/en-US/docs/Web/API/Element/closest
-	Element closest(string selector) {
+	Element closest(string selector) @safe {
 		Element e = this;
 		while(e !is null) {
 			if(e.matches(selector))
@@ -2724,7 +2719,7 @@ class Element : DomParent {
 
 		The name `getElementsBySelector` was the original name, written back before the name `querySelector` was standardized (this library is older than you might think!), but they do the same thing..
 	*/
-	Element[] querySelectorAll(string selector) {
+	Element[] querySelectorAll(string selector) @safe {
 		// FIXME: this function could probably use some performance attention
 		// ... but only mildly so according to the profiler in the big scheme of things; probably negligible in a big app.
 
@@ -2749,13 +2744,13 @@ class Element : DomParent {
 
 		So these is incompatible with Javascript in the face of live dom mutation and will likely remain so.
 	+/
-	Element[] getElementsByClassName(string cn) {
+	Element[] getElementsByClassName(string cn) @safe {
 		// is this correct?
 		return getElementsBySelector("." ~ cn);
 	}
 
 	/// ditto
-	Element[] getElementsByTagName(string tag) {
+	Element[] getElementsByTagName(string tag) @safe {
 		if(parentDocument && parentDocument.loose)
 			tag = tag.toLower();
 		Element[] ret;
@@ -2776,7 +2771,7 @@ class Element : DomParent {
 
 		Note that the returned string is decoded, so it no longer contains any xml entities.
 	*/
-	string getAttribute(string name) const {
+	string getAttribute(string name) const @safe {
 		if(parentDocument && parentDocument.loose)
 			name = name.toLower();
 		auto e = name in attributes;
@@ -2789,7 +2784,7 @@ class Element : DomParent {
 	/**
 		Sets an attribute. Returns this for easy chaining
 	*/
-	Element setAttribute(string name, string value) {
+	Element setAttribute(string name, string value) @safe {
 		if(parentDocument && parentDocument.loose)
 			name = name.toLower();
 
@@ -2813,7 +2808,7 @@ class Element : DomParent {
 	/**
 		Returns if the attribute exists.
 	*/
-	bool hasAttribute(string name) {
+	bool hasAttribute(string name) @safe {
 		if(parentDocument && parentDocument.loose)
 			name = name.toLower();
 
@@ -2826,7 +2821,7 @@ class Element : DomParent {
 	/**
 		Removes the given attribute from the element.
 	*/
-	Element removeAttribute(string name)
+	Element removeAttribute(string name) @safe
 	out(ret) {
 		assert(ret is this);
 	}
@@ -2844,7 +2839,7 @@ class Element : DomParent {
 		Gets or sets the class attribute's contents. Returns
 		an empty string if it has no class.
 	*/
-	@property string className() const {
+	@property string className() const @safe {
 		auto c = getAttribute("class");
 		if(c is null)
 			return "";
@@ -2852,7 +2847,7 @@ class Element : DomParent {
 	}
 
 	/// ditto
-	@property Element className(string c) {
+	@property Element className(string c) @safe {
 		setAttribute("class", c);
 		return this;
 	}
@@ -2870,7 +2865,7 @@ class Element : DomParent {
 	/**
 		Returns the element's children.
 	*/
-	@property inout(Element[]) childNodes() inout {
+	@property inout(Element[]) childNodes() inout @safe {
 		return children;
 	}
 
@@ -2878,7 +2873,7 @@ class Element : DomParent {
 		HTML5's dataset property. It is an alternate view into attributes with the data- prefix.
 		Given `<a data-my-property="cool" />`, we get `assert(a.dataset.myProperty == "cool");`
 	+/
-	@property DataSet dataset() {
+	@property DataSet dataset() @safe {
 		return DataSet(this);
 	}
 
@@ -2888,7 +2883,7 @@ class Element : DomParent {
 		ele.attrs.largeSrc = "foo"; // same as ele.setAttribute("largeSrc", "foo")
 		---
 	+/
-	@property AttributeSet attrs() {
+	@property AttributeSet attrs() @safe {
 		return AttributeSet(this);
 	}
 
@@ -2899,19 +2894,19 @@ class Element : DomParent {
 		element.style.color = "red"; // translates into setting `color: red;` in the `style` attribute
 		---
 	+/
-	@property ElementStyle style() {
+	@property ElementStyle style() @safe {
 		return ElementStyle(this);
 	}
 
 	/++
 		This sets the style attribute with a string.
 	+/
-	@property ElementStyle style(string s) {
+	@property ElementStyle style(string s) @safe {
 		this.setAttribute("style", s);
 		return this.style;
 	}
 
-	private void parseAttributes(string[] whichOnes = null) {
+	private void parseAttributes(string[] whichOnes = null) @safe {
 /+
 		if(whichOnes is null)
 			whichOnes = attributes.keys;
@@ -2940,7 +2935,7 @@ class Element : DomParent {
 	private CssStyle _computedStyle;
 
 	/// Don't use this. It can try to parse out the style element but it isn't complete and if I get back to it, it won't be for a while.
-	@property CssStyle computedStyle() {
+	@property CssStyle computedStyle() @safe {
 		if(_computedStyle is null) {
 			auto style = this.getAttribute("style");
 		/* we'll treat shitty old html attributes as css here */
@@ -3008,7 +3003,7 @@ class Element : DomParent {
 	*********************************/
 
 	/// Removes all inner content from the tag; all child text and elements are gone.
-	void removeAllChildren()
+	void removeAllChildren() @safe
 		out {
 			assert(this.children.length == 0);
 		}
@@ -3023,13 +3018,13 @@ class Element : DomParent {
 
 		History: added June 13, 2020
 	+/
-	Element appendSibling(Element e) {
+	Element appendSibling(Element e) @safe {
 		parentNode.insertAfter(this, e);
 		return e;
 	}
 
 	/// ditto
-	Element prependSibling(Element e) {
+	Element prependSibling(Element e) @safe {
 		parentNode.insertBefore(this, e);
 		return e;
 	}
@@ -3043,7 +3038,7 @@ class Element : DomParent {
 		History:
 			Prior to 1 Jan 2020 (git tag v4.4.1 and below), it required that the given element must not have a parent already. This was in violation of standard, so it changed the behavior to remove it from the existing parent and instead move it here.
 	+/
-	Element appendChild(Element e)
+	Element appendChild(Element e) @safe
 		in {
 			assert(e !is null);
 			assert(e !is this);
@@ -3076,7 +3071,7 @@ class Element : DomParent {
 	}
 
 	/// Inserts the second element to this node, right before the first param
-	Element insertBefore(in Element where, Element what)
+	Element insertBefore(in Element where, Element what) @safe
 		in {
 			assert(where !is null);
 			assert(where.parentNode is this);
@@ -3113,7 +3108,7 @@ class Element : DomParent {
 	/++
 		Inserts the given element `what` as a sibling of the `this` element, after the element `where` in the parent node.
 	+/
-	Element insertAfter(in Element where, Element what)
+	Element insertAfter(in Element where, Element what) @safe
 		in {
 			assert(where !is null);
 			assert(where.parentNode is this);
@@ -3146,7 +3141,7 @@ class Element : DomParent {
 	}
 
 	/// swaps one child for a new thing. Returns the old child which is now parentless.
-	Element swapNode(Element child, Element replacement)
+	Element swapNode(Element child, Element replacement) @safe
 		in {
 			assert(child !is null);
 			assert(replacement !is null);
@@ -3180,7 +3175,7 @@ class Element : DomParent {
 		See_Also:
 			[firstInnerText], [directText], [innerText], [appendChild]
 	+/
-	Element appendText(string text) {
+	Element appendText(string text) @safe {
 		Element e = new TextNode(parentDocument, text);
 		appendChild(e);
 		return this;
@@ -3195,7 +3190,7 @@ class Element : DomParent {
 		Params:
 			tagName = filter results to only the child elements with the given tag name.
 	+/
-	@property Element[] childElements(string tagName = null) {
+	@property Element[] childElements(string tagName = null) @safe {
 		Element[] ret;
 		foreach(c; children)
 			if(c.nodeType == 1 && (tagName is null || c.tagName == tagName))
@@ -3209,7 +3204,7 @@ class Element : DomParent {
 
 		This is similar to `element.innerHTML += "html string";` in Javascript.
 	+/
-	Element[] appendHtml(string html) {
+	Element[] appendHtml(string html) @safe {
 		Document d = new Document("<root>" ~ html ~ "</root>");
 		return stealChildren(d.root);
 	}
@@ -3218,7 +3213,7 @@ class Element : DomParent {
 	/++
 		Inserts a child under this element after the element `where`.
 	+/
-	void insertChildAfter(Element child, Element where)
+	void insertChildAfter(Element child, Element where) @safe
 		in {
 			assert(child !is null);
 			assert(where !is null);
@@ -3255,7 +3250,7 @@ class Element : DomParent {
 			e = the element whose children you want to steal
 			position = an existing child element in `this` before which you want the stolen children to be inserted. If `null`, it will append the stolen children at the end of our current children.
 	+/
-	Element[] stealChildren(Element e, Element position = null)
+	Element[] stealChildren(Element e, Element position = null) @safe
 		in {
 			assert(!selfClosed);
 			assert(e !is null);
@@ -3295,7 +3290,7 @@ class Element : DomParent {
 	}
 
     	/// Puts the current element first in our children list. The given element must not have a parent already.
-	Element prependChild(Element e)
+	Element prependChild(Element e) @safe
 		in {
 			assert(e.parentNode is null);
 			assert(!selfClosed);
@@ -3321,7 +3316,7 @@ class Element : DomParent {
 		Returns a string containing all child elements, formatted such that it could be pasted into
 		an XML file.
 	*/
-	@property string innerHTML(Appender!string where = appender!string()) const {
+	@property string innerHTML(Appender!string where = appender!string()) const @safe {
 		if(children is null)
 			return "";
 
@@ -3339,7 +3334,7 @@ class Element : DomParent {
 	/**
 		Takes some html and replaces the element's children with the tree made from the string.
 	*/
-	@property Element innerHTML(string html, bool strict = false) {
+	@property Element innerHTML(string html, bool strict = false) @safe {
 		if(html.length)
 			selfClosed = false;
 
@@ -3364,7 +3359,7 @@ class Element : DomParent {
 	}
 
 	/// ditto
-	@property Element innerHTML(Html html) {
+	@property Element innerHTML(Html html) @safe {
 		return this.innerHTML = html.source;
 	}
 
@@ -3376,7 +3371,7 @@ class Element : DomParent {
 
 		Returns the new children that replace this.
 	*/
-	@property Element[] outerHTML(string html) {
+	@property Element[] outerHTML(string html) @safe {
 		auto doc = new Document();
 		doc.parseUtf8("<innerhtml>" ~ html ~ "</innerhtml>"); // FIXME: needs to preserve the strictness
 
@@ -3395,7 +3390,7 @@ class Element : DomParent {
 
 		This is equivalent to calling toString().
 	+/
-	@property string outerHTML() {
+	@property string outerHTML() @safe {
 		return this.toString();
 	}
 
@@ -3404,7 +3399,7 @@ class Element : DomParent {
 	///
 	/// The only times you might actually need it are for < style > and < script > tags in html.
 	/// Other than that, innerHTML and/or innerText should do the job.
-	@property void innerRawSource(string rawSource) {
+	@property void innerRawSource(string rawSource) @safe {
 		children.length = 0;
 		auto rs = new RawSource(parentDocument, rawSource);
 		children ~= rs;
@@ -3414,7 +3409,7 @@ class Element : DomParent {
 	/++
 		Replaces the element `find`, which must be a child of `this`, with the element `replace`, which must have no parent.
 	+/
-	Element replaceChild(Element find, Element replace)
+	Element replaceChild(Element find, Element replace) @safe
 		in {
 			assert(find !is null);
 			assert(find.parentNode is this);
@@ -3446,7 +3441,7 @@ class Element : DomParent {
 	/**
 		Replaces the given element with a whole group.
 	*/
-	void replaceChild(Element find, Element[] replace)
+	void replaceChild(Element find, Element[] replace) @safe
 		in {
 			assert(find !is null);
 			assert(replace !is null);
@@ -3491,7 +3486,7 @@ class Element : DomParent {
 
 		Returns the removed element.
 	*/
-	Element removeChild(Element c)
+	Element removeChild(Element c) @safe
 		in {
 			assert(c !is null);
 			assert(c.parentNode is this);
@@ -3514,7 +3509,7 @@ class Element : DomParent {
 	}
 
 	/// This removes all the children from this element, returning the old list.
-	Element[] removeChildren()
+	Element[] removeChildren() @safe
 		out (ret) {
 			assert(children.length == 0);
 			debug foreach(r; ret)
@@ -3545,7 +3540,7 @@ class Element : DomParent {
 			[visibleText], which is closer to what the real `innerText`
 			does.
 	*/
-	@property string innerText() const {
+	@property string innerText() const @safe {
 		string s;
 		foreach(child; children) {
 			if(child.nodeType != NodeType.Text)
@@ -3572,11 +3567,11 @@ class Element : DomParent {
 		History:
 			Added March 25, 2022 (dub v10.8)
 	+/
-	string visibleText() const {
+	string visibleText() const @safe {
 		return this.visibleTextHelper(this.tagName == "pre");
 	}
 
-	private string visibleTextHelper(bool pre) const {
+	private string visibleTextHelper(bool pre) const @safe {
 		string result;
 		foreach(thing; this.children) {
 			if(thing.nodeType == NodeType.Text)
@@ -3593,7 +3588,7 @@ class Element : DomParent {
 		Sets the inside text, replacing all children. You don't
 		have to worry about entity encoding.
 	*/
-	@property void innerText(string text) {
+	@property void innerText(string text) @safe {
 		selfClosed = false;
 		Element e = new TextNode(parentDocument, text);
 		children = [e];
@@ -3603,14 +3598,14 @@ class Element : DomParent {
 	/**
 		Strips this node out of the document, replacing it with the given text
 	*/
-	@property void outerText(string text) {
+	@property void outerText(string text) @safe {
 		parentNode.replaceChild(this, new TextNode(parentDocument, text));
 	}
 
 	/**
 		Same result as innerText; the tag with all inner tags stripped out
 	*/
-	@property string outerText() const {
+	@property string outerText() const @safe {
 		return innerText;
 	}
 
@@ -3620,7 +3615,7 @@ class Element : DomParent {
 	*********************************/
 
 	/// This is a full clone of the element. Alias for cloneNode(true) now. Don't extend it.
-	@property Element cloned()
+	@property Element cloned() @safe
 	/+
 		out(ret) {
 			// FIXME: not sure why these fail...
@@ -3634,7 +3629,7 @@ class Element : DomParent {
 	}
 
 	/// Clones the node. If deepClone is true, clone all inner tags too. If false, only do this tag (and its attributes), but it will have no contents.
-	Element cloneNode(bool deepClone) {
+	Element cloneNode(bool deepClone) @safe {
 		auto e = Element.make(this.tagName);
 		e.attributes = this.attributes.aadup;
 		e.selfClosed = this.selfClosed;
@@ -3650,13 +3645,13 @@ class Element : DomParent {
 	}
 
 	/// W3C DOM interface. Only really meaningful on [TextNode] instances, but the interface is present on the base class.
-	string nodeValue() const {
+	string nodeValue() const @safe {
 		return "";
 	}
 
 	// should return int
 	///.
-	@property int nodeType() const {
+	@property int nodeType() const @safe {
 		return 1;
 	}
 
@@ -3702,7 +3697,7 @@ class Element : DomParent {
 		Turns the whole element, including tag, attributes, and children, into a string which could be pasted into
 		an XML file.
 	*/
-	override string toString() const {
+	override string toString() const @safe {
 		return writeToAppender();
 	}
 
@@ -3716,7 +3711,7 @@ class Element : DomParent {
 			Added December 3, 2021 (dub v10.5)
 
 	+/
-	public bool isEmpty() const {
+	public bool isEmpty() const @safe {
 		foreach(child; this.children) {
 			// any non-text node is of course not empty since that's a tag
 			if(child.nodeType != NodeType.Text)
@@ -3729,7 +3724,7 @@ class Element : DomParent {
 		return true;
 	}
 
-	protected string toPrettyStringIndent(bool insertComments, int indentationLevel, string indentWith) const {
+	protected string toPrettyStringIndent(bool insertComments, int indentationLevel, string indentWith) const @safe {
 		if(indentWith is null)
 			return null;
 
@@ -3783,11 +3778,11 @@ class Element : DomParent {
 			I reserve the right to make future changes in the future without considering
 			them breaking as well.
 	+/
-	final string toPrettyString(bool insertComments = false, int indentationLevel = 0, string indentWith = "\t") const {
+	final string toPrettyString(bool insertComments = false, int indentationLevel = 0, string indentWith = "\t") const @safe {
 		return toPrettyStringImpl(insertComments, indentationLevel, indentWith).strip;
 	}
 
-	string toPrettyStringImpl(bool insertComments = false, int indentationLevel = 0, string indentWith = "\t") const {
+	string toPrettyStringImpl(bool insertComments = false, int indentationLevel = 0, string indentWith = "\t") const @trusted {
 
 		// first step is to concatenate any consecutive text nodes to simplify
 		// the white space analysis. this changes the tree! but i'm allowed since
@@ -3896,7 +3891,7 @@ class Element : DomParent {
 	/// This is the actual implementation used by toString. You can pass it a preallocated buffer to save some time.
 	/// Note: the ordering of attributes in the string is undefined.
 	/// Returns the string it creates.
-	string writeToAppender(Appender!string where = appender!string()) const {
+	string writeToAppender(Appender!string where = appender!string()) const @safe {
 		assert(tagName !is null);
 
 		where.reserve((this.children.length + 1) * 512);
@@ -3936,7 +3931,7 @@ class Element : DomParent {
 	/**
 		Returns a lazy range of all its children, recursively.
 	*/
-	@property ElementStream tree() {
+	@property ElementStream tree() @safe {
 		return new ElementStream(this);
 	}
 
@@ -3946,7 +3941,7 @@ class Element : DomParent {
 		This is fairly html specific and the label uses my style. I recommend you view the source before you use it to better understand what it does.
 	+/
 	/// Tags: HTML, HTML5
-	Element addField(string label, string name, string type = "text", FormFieldOptions fieldOptions = FormFieldOptions.none) {
+	Element addField(string label, string name, string type = "text", FormFieldOptions fieldOptions = FormFieldOptions.none) @safe {
 		auto fs = this;
 		auto i = fs.addChild("label");
 
@@ -3972,7 +3967,7 @@ class Element : DomParent {
 	}
 
 	/// ditto
-	Element addField(Element label, string name, string type = "text", FormFieldOptions fieldOptions = FormFieldOptions.none) {
+	Element addField(Element label, string name, string type = "text", FormFieldOptions fieldOptions = FormFieldOptions.none) @safe {
 		auto fs = this;
 		auto i = fs.addChild("label");
 		i.addChild(label);
@@ -3992,12 +3987,12 @@ class Element : DomParent {
 	}
 
 	/// ditto
-	Element addField(string label, string name, FormFieldOptions fieldOptions) {
+	Element addField(string label, string name, FormFieldOptions fieldOptions) @safe {
 		return addField(label, name, "text", fieldOptions);
 	}
 
 	/// ditto
-	Element addField(string label, string name, string[string] options, FormFieldOptions fieldOptions = FormFieldOptions.none) {
+	Element addField(string label, string name, string[string] options, FormFieldOptions fieldOptions = FormFieldOptions.none) @safe {
 		auto fs = this;
 		auto i = fs.addChild("label");
 		i.addChild("span", label);
@@ -4012,7 +4007,7 @@ class Element : DomParent {
 	}
 
 	/// ditto
-	Element addSubmitButton(string label = null) {
+	Element addSubmitButton(string label = null) @safe {
 		auto t = this;
 		auto holder = t.addChild("div");
 		holder.addClass("submit-holder");
@@ -4038,7 +4033,7 @@ class Element : DomParent {
 +/
 /// Group: core_functionality
 class XmlDocument : Document {
-	this(string data, bool enableHtmlHacks = false) {
+	this(string data, bool enableHtmlHacks = false) @safe {
 		selfClosedElements = null;
 		inlineElements = null;
 		rawSourceElements = null;
@@ -4049,7 +4044,7 @@ class XmlDocument : Document {
 	}
 }
 
-unittest {
+@safe unittest {
 	// FIXME: i should also make XmlDocument do different entities than just html too.
 	auto str = "<html><style>foo {}</style><script>void function() { a < b; }</script></html>";
 	auto document = new Document(str, true, true);
@@ -4070,12 +4065,12 @@ unittest {
 
 /// finds comments that match the given txt. Case insensitive, strips whitespace.
 /// Group: core_functionality
-Element[] findComments(Document document, string txt) {
+Element[] findComments(Document document, string txt) @safe {
 	return findComments(document.root, txt);
 }
 
 /// ditto
-Element[] findComments(Element element, string txt) {
+Element[] findComments(Element element, string txt) @safe {
 	txt = txt.strip().toLower();
 	Element[] ret;
 
@@ -4126,17 +4121,17 @@ struct MaybeNullElement(SomeElementType) {
 /// Group: implementations
 struct ElementCollection {
 	///
-	this(Element e) {
+	this(Element e) @safe {
 		elements = [e];
 	}
 
 	///
-	this(Element e, string selector) {
+	this(Element e, string selector) @safe {
 		elements = e.querySelectorAll(selector);
 	}
 
 	///
-	this(Element[] e) {
+	this(Element[] e) @safe {
 		elements = e;
 	}
 
@@ -4144,7 +4139,7 @@ struct ElementCollection {
 	//alias elements this; // let it implicitly convert to the underlying array
 
 	///
-	ElementCollection opIndex(string selector) {
+	ElementCollection opIndex(string selector) @safe {
 		ElementCollection ec;
 		foreach(e; elements)
 			ec.elements ~= e.getElementsBySelector(selector);
@@ -4152,28 +4147,28 @@ struct ElementCollection {
 	}
 
 	///
-	Element opIndex(int i) {
+	Element opIndex(int i) @safe {
 		return elements[i];
 	}
 
 	/// if you slice it, give the underlying array for easy forwarding of the
 	/// collection to range expecting algorithms or looping over.
-	Element[] opSlice() {
+	Element[] opSlice() @safe {
 		return elements;
 	}
 
 	/// And input range primitives so we can foreach over this
-	void popFront() {
+	void popFront() @safe {
 		elements = elements[1..$];
 	}
 
 	/// ditto
-	Element front() {
+	Element front() @safe {
 		return elements[0];
 	}
 
 	/// ditto
-	bool empty() {
+	bool empty() @safe {
 		return !elements.length;
 	}
 
@@ -4206,7 +4201,7 @@ struct ElementCollection {
 	/++
 		Calls [Element.wrapIn] on each member of the collection, but clones the argument `what` for each one.
 	+/
-	ElementCollection wrapIn(Element what) {
+	ElementCollection wrapIn(Element what) @safe {
 		foreach(e; elements) {
 			e.wrapIn(what.cloneNode(false));
 		}
@@ -4232,12 +4227,12 @@ mixin template JavascriptStyleDispatch() {
 	}
 
 	///
-	string opIndex(string key) const {
+	string opIndex(string key) const @safe {
 		return get(key);
 	}
 
 	///
-	string opIndexAssign(string value, string field) {
+	string opIndexAssign(string value, string field) @safe {
 		return set(field, value);
 	}
 
@@ -4253,19 +4248,19 @@ mixin template JavascriptStyleDispatch() {
 /// Group: implementations
 struct DataSet {
 	///
-	this(Element e) {
+	this(Element e) @safe {
 		this._element = e;
 	}
 
 	private Element _element;
 	///
-	string set(string name, string value) {
+	string set(string name, string value) @safe {
 		_element.setAttribute("data-" ~ unCamelCase(name), value);
 		return value;
 	}
 
 	///
-	string get(string name) const {
+	string get(string name) const @safe {
 		return _element.getAttribute("data-" ~ unCamelCase(name));
 	}
 
@@ -4277,7 +4272,7 @@ struct DataSet {
 /// Group: implementations
 struct AttributeSet {
 	/// Generally, you shouldn't create this yourself, since you can use [Element.attrs] instead.
-	this(Element e) {
+	this(Element e) @safe {
 		this._element = e;
 	}
 
@@ -4285,7 +4280,7 @@ struct AttributeSet {
 	/++
 		Sets a `value` for attribute with `name`. If the attribute doesn't exist, this will create it, even if `value` is `null`.
 	+/
-	string set(string name, string value) {
+	string set(string name, string value) @safe {
 		_element.setAttribute(name, value);
 		return value;
 	}
@@ -4301,7 +4296,7 @@ struct AttributeSet {
 		return name in _element.attributes;
 	}
 	///
-	unittest
+	@safe unittest
 	{
 		auto doc = new XmlDocument(`<test attr="test"/>`);
 		assert("attr" in doc.root.attrs);
@@ -4311,7 +4306,7 @@ struct AttributeSet {
 	/++
 		Returns the value of attribute `name`, or `null` if doesn't exist
 	+/
-	string get(string name) const {
+	string get(string name) const @safe {
 		return _element.getAttribute(name);
 	}
 
@@ -4326,27 +4321,24 @@ struct AttributeSet {
 
 /// Group: implementations
 struct ElementStyle {
-	this(Element parent) {
+	this(Element parent) @safe {
 		_element = parent;
 	}
 
 	Element _element;
 
-	@property ref inout(string) _attribute() inout {
+	@property ref inout(string) _attribute() inout @safe {
 		auto s = "style" in _element.attributes;
-		if(s is null) {
-			auto e = cast() _element; // const_cast
-			e.attributes["style"] = ""; // we need something to reference
-			s = cast(inout) ("style" in e.attributes);
+		if (s is null) {
+			static string nothing = "";
+			return cast(inout)nothing;
 		}
-
-		assert(s !is null);
 		return *s;
 	}
 
 	alias _attribute this; // this is meant to allow element.style = element.style ~ " string "; to still work.
 
-	string set(string name, string value) {
+	string set(string name, string value) @safe {
 		if(name.length == 0)
 			return value;
 		if(name == "cssFloat")
@@ -4369,7 +4361,7 @@ struct ElementStyle {
 
 		return value;
 	}
-	string get(string name) const {
+	string get(string name) const @safe {
 		if(name == "cssFloat")
 			name = "float";
 		else
@@ -4380,7 +4372,7 @@ struct ElementStyle {
 		return null;
 	}
 
-	string[string] rules() const {
+	string[string] rules() const @safe {
 		string[string] ret;
 		foreach(rule;  _attribute.split(";")) {
 			rule = rule.strip();
@@ -4404,7 +4396,7 @@ struct ElementStyle {
 }
 
 /// Converts a camel cased propertyName to a css style dashed property-name
-string unCamelCase(string a) {
+string unCamelCase(string a) @safe {
 	string ret;
 	foreach(c; a)
 		if((c >= 'A' && c <= 'Z'))
@@ -4415,7 +4407,7 @@ string unCamelCase(string a) {
 }
 
 /// Translates a css style property-name to a camel cased propertyName
-string camelCase(string a) {
+string camelCase(string a) @safe {
 	string ret;
 	bool justSawDash = false;
 	foreach(c; a)
@@ -4490,7 +4482,7 @@ do {
 /// Group: core_functionality
 class DocumentFragment : Element {
 	///.
-	this(Document _parentDocument) {
+	this(Document _parentDocument) @safe {
 		tagName = "#fragment";
 		super(_parentDocument);
 	}
@@ -4500,18 +4492,18 @@ class DocumentFragment : Element {
 
 		Since: March 29, 2018 (or git tagged v2.1.0)
 	+/
-	this(Html html) {
+	this(Html html) @safe {
 		this(null);
 
 		this.innerHTML = html.source;
 	}
 
 	///.
-	override string writeToAppender(Appender!string where = appender!string()) const {
+	override string writeToAppender(Appender!string where = appender!string()) const @safe {
 		return this.innerHTML(where);
 	}
 
-	override string toPrettyStringImpl(bool insertComments, int indentationLevel, string indentWith) const {
+	override string toPrettyStringImpl(bool insertComments, int indentationLevel, string indentWith) const @safe {
 		string s;
 		foreach(child; children)
 			s ~= child.toPrettyStringImpl(insertComments, indentationLevel, indentWith);
@@ -4541,7 +4533,7 @@ class DocumentFragment : Element {
 /// The output parameter can be given to append to an existing buffer. You don't have to
 /// pass one; regardless, the return value will be usable for you, with just the data encoded.
 /// Group: core_functionality
-string htmlEntitiesEncode(string data, Appender!string output = appender!string(), bool encodeNonAscii = true) {
+string htmlEntitiesEncode(string data, Appender!string output = appender!string(), bool encodeNonAscii = true) @safe {
 	// if there's no entities, we can save a lot of time by not bothering with the
 	// decoding loop. This check cuts the net toString time by better than half in my test.
 	// let me know if it made your tests worse though, since if you use an entity in just about
@@ -4594,13 +4586,13 @@ string htmlEntitiesEncode(string data, Appender!string output = appender!string(
 
 /// An alias for htmlEntitiesEncode; it works for xml too
 /// Group: core_functionality
-string xmlEntitiesEncode(string data) {
+string xmlEntitiesEncode(string data) @safe {
 	return htmlEntitiesEncode(data);
 }
 
 /// This helper function is used for decoding html entities. It has a hard-coded list of entities and characters.
 /// Group: core_functionality
-dchar parseEntity(in dchar[] entity) {
+dchar parseEntity(in dchar[] entity) @safe {
 
 	char[128] buffer;
 	int bpos;
@@ -4670,7 +4662,7 @@ dchar parseEntity(in dchar[] entity) {
 	assert(0);
 }
 
-unittest {
+@safe unittest {
 	// not in the binary search
 	assert(parseEntity("&quot;"d) == '"');
 
@@ -4696,12 +4688,12 @@ unittest {
 /// By default, it uses loose mode - it will try to return a useful string from garbage input too.
 /// Set the second parameter to true if you'd prefer it to strictly throw exceptions on garbage input.
 /// Group: core_functionality
-string htmlEntitiesDecode(string data, bool strict = false) {
+string htmlEntitiesDecode(string data, bool strict = false) @safe {
 	// this check makes a *big* difference; about a 50% improvement of parse speed on my test.
 	if(data.indexOf("&") == -1) // all html entities begin with &
 		return data; // if there are no entities in here, we can return the original slice and save some time
 
-	char[] a; // this seems to do a *better* job than appender!
+	string a; // this seems to do a *better* job than appender!
 
 	char[4] buffer;
 
@@ -4817,10 +4809,10 @@ string htmlEntitiesDecode(string data, bool strict = false) {
 		// FIXME: what if we have "cool &amp"? should we try to parse it?
 	}
 
-	return cast(string) a; // assumeUnique is actually kinda slow, lol
+	return a; // assumeUnique is actually kinda slow, lol
 }
 
-unittest {
+@safe unittest {
 	// error recovery
 	assert(htmlEntitiesDecode("&lt;&foo") == "<&foo"); // unterminated turned back to thing
 	assert(htmlEntitiesDecode("&lt&foo") == "<&foo"); // semi-terminated... parse and carry on (is this really sane?)
@@ -4841,17 +4833,17 @@ unittest {
 
 /// Group: implementations
 abstract class SpecialElement : Element {
-	this(Document _parentDocument) {
+	this(Document _parentDocument) @safe {
 		super(_parentDocument);
 	}
 
 	///.
-	override Element appendChild(Element e) {
+	override Element appendChild(Element e) @safe {
 		assert(0, "Cannot append to a special node");
 	}
 
 	///.
-	@property override int nodeType() const {
+	@property override int nodeType() const @safe {
 		return 100;
 	}
 }
@@ -4860,14 +4852,14 @@ abstract class SpecialElement : Element {
 /// Group: implementations
 class RawSource : SpecialElement {
 	///.
-	this(Document _parentDocument, string s) {
+	this(Document _parentDocument, string s) @safe {
 		super(_parentDocument);
 		source = s;
 		tagName = "#raw";
 	}
 
 	///.
-	override string nodeValue() const {
+	override string nodeValue() const @safe {
 		return this.toString();
 	}
 
@@ -4882,7 +4874,7 @@ class RawSource : SpecialElement {
 	}
 
 
-	override RawSource cloneNode(bool deep) {
+	override RawSource cloneNode(bool deep) @safe {
 		return new RawSource(parentDocument, source);
 	}
 
@@ -4892,18 +4884,18 @@ class RawSource : SpecialElement {
 
 /// Group: implementations
 abstract class ServerSideCode : SpecialElement {
-	this(Document _parentDocument, string type) {
+	this(Document _parentDocument, string type) @safe {
 		super(_parentDocument);
 		tagName = "#" ~ type;
 	}
 
 	///.
-	override string nodeValue() const {
+	override string nodeValue() const @safe {
 		return this.source;
 	}
 
 	///.
-	override string writeToAppender(Appender!string where = appender!string()) const {
+	override string writeToAppender(Appender!string where = appender!string()) const @safe {
 		auto start = where.data.length;
 		where.put("<");
 		where.put(source);
@@ -4911,7 +4903,7 @@ abstract class ServerSideCode : SpecialElement {
 		return where.data[start .. $];
 	}
 
-	override string toPrettyStringImpl(bool, int, string) const {
+	override string toPrettyStringImpl(bool, int, string) const @safe {
 		return "<" ~ source ~ ">";
 	}
 
@@ -4923,12 +4915,12 @@ abstract class ServerSideCode : SpecialElement {
 /// Group: implementations
 class PhpCode : ServerSideCode {
 	///.
-	this(Document _parentDocument, string s) {
+	this(Document _parentDocument, string s) @safe {
 		super(_parentDocument, "php");
 		source = s;
 	}
 
-	override PhpCode cloneNode(bool deep) {
+	override PhpCode cloneNode(bool deep) @safe {
 		return new PhpCode(parentDocument, source);
 	}
 }
@@ -4937,12 +4929,12 @@ class PhpCode : ServerSideCode {
 /// Group: implementations
 class AspCode : ServerSideCode {
 	///.
-	this(Document _parentDocument, string s) {
+	this(Document _parentDocument, string s) @safe {
 		super(_parentDocument, "asp");
 		source = s;
 	}
 
-	override AspCode cloneNode(bool deep) {
+	override AspCode cloneNode(bool deep) @safe {
 		return new AspCode(parentDocument, source);
 	}
 }
@@ -4951,23 +4943,23 @@ class AspCode : ServerSideCode {
 /// Group: implementations
 class BangInstruction : SpecialElement {
 	///.
-	this(Document _parentDocument, string s) {
+	this(Document _parentDocument, string s) @safe {
 		super(_parentDocument);
 		source = s;
 		tagName = "#bpi";
 	}
 
 	///.
-	override string nodeValue() const {
+	override string nodeValue() const @safe {
 		return this.source;
 	}
 
-	override BangInstruction cloneNode(bool deep) {
+	override BangInstruction cloneNode(bool deep) @safe {
 		return new BangInstruction(parentDocument, source);
 	}
 
 	///.
-	override string writeToAppender(Appender!string where = appender!string()) const {
+	override string writeToAppender(Appender!string where = appender!string()) const @safe {
 		auto start = where.data.length;
 		where.put("<!");
 		where.put(source);
@@ -4975,7 +4967,7 @@ class BangInstruction : SpecialElement {
 		return where.data[start .. $];
 	}
 
-	override string toPrettyStringImpl(bool, int, string) const {
+	override string toPrettyStringImpl(bool, int, string) const @safe {
 		string s;
 		s ~= "<!";
 		s ~= source;
@@ -4991,23 +4983,23 @@ class BangInstruction : SpecialElement {
 /// Group: implementations
 class QuestionInstruction : SpecialElement {
 	///.
-	this(Document _parentDocument, string s) {
+	this(Document _parentDocument, string s) @safe {
 		super(_parentDocument);
 		source = s;
 		tagName = "#qpi";
 	}
 
-	override QuestionInstruction cloneNode(bool deep) {
+	override QuestionInstruction cloneNode(bool deep) @safe {
 		return new QuestionInstruction(parentDocument, source);
 	}
 
 	///.
-	override string nodeValue() const {
+	override string nodeValue() const @safe {
 		return this.source;
 	}
 
 	///.
-	override string writeToAppender(Appender!string where = appender!string()) const {
+	override string writeToAppender(Appender!string where = appender!string()) const @safe {
 		auto start = where.data.length;
 		where.put("<");
 		where.put(source);
@@ -5015,7 +5007,7 @@ class QuestionInstruction : SpecialElement {
 		return where.data[start .. $];
 	}
 
-	override string toPrettyStringImpl(bool, int, string) const {
+	override string toPrettyStringImpl(bool, int, string) const @safe {
 		string s;
 		s ~= "<";
 		s ~= source;
@@ -5032,13 +5024,13 @@ class QuestionInstruction : SpecialElement {
 /// Group: implementations
 class HtmlComment : SpecialElement {
 	///.
-	this(Document _parentDocument, string s) {
+	this(Document _parentDocument, string s) @safe {
 		super(_parentDocument);
 		source = s;
 		tagName = "#comment";
 	}
 
-	override HtmlComment cloneNode(bool deep) {
+	override HtmlComment cloneNode(bool deep) @safe {
 		return new HtmlComment(parentDocument, source);
 	}
 
@@ -5048,7 +5040,7 @@ class HtmlComment : SpecialElement {
 	}
 
 	///.
-	override string writeToAppender(Appender!string where = appender!string()) const {
+	override string writeToAppender(Appender!string where = appender!string()) const @safe {
 		auto start = where.data.length;
 		where.put("<!--");
 		where.put(source);
@@ -5056,7 +5048,7 @@ class HtmlComment : SpecialElement {
 		return where.data[start .. $];
 	}
 
-	override string toPrettyStringImpl(bool, int, string) const {
+	override string toPrettyStringImpl(bool, int, string) const @safe {
 		string s;
 		s ~= "<!--";
 		s ~= source;
@@ -5077,44 +5069,44 @@ class HtmlComment : SpecialElement {
 class TextNode : Element {
   public:
 	///.
-	this(Document _parentDocument, string e) {
+	this(Document _parentDocument, string e) @safe {
 		super(_parentDocument);
 		contents = e;
 		tagName = "#text";
 	}
 
 	///
-	this(string e) {
+	this(string e) @safe {
 		this(null, e);
 	}
 
 	string opDispatch(string name)(string v = null) if(0) { return null; } // text nodes don't have attributes
 
 	///.
-	static TextNode fromUndecodedString(Document _parentDocument, string html) {
+	static TextNode fromUndecodedString(Document _parentDocument, string html) @safe {
 		auto e = new TextNode(_parentDocument, "");
 		e.contents = htmlEntitiesDecode(html, _parentDocument is null ? false : !_parentDocument.loose);
 		return e;
 	}
 
 	///.
-	override @property TextNode cloneNode(bool deep) {
+	override @property TextNode cloneNode(bool deep) @safe {
 		auto n = new TextNode(parentDocument, contents);
 		return n;
 	}
 
 	///.
-	override string nodeValue() const {
+	override string nodeValue() const @safe {
 		return this.contents; //toString();
 	}
 
 	///.
-	@property override int nodeType() const {
+	@property override int nodeType() const @safe {
 		return NodeType.Text;
 	}
 
 	///.
-	override string writeToAppender(Appender!string where = appender!string()) const {
+	override string writeToAppender(Appender!string where = appender!string()) const @safe {
 		string s;
 		if(contents.length)
 			s = htmlEntitiesEncode(contents, where);
@@ -5125,7 +5117,7 @@ class TextNode : Element {
 		return s;
 	}
 
-	override string toPrettyStringImpl(bool insertComments = false, int indentationLevel = 0, string indentWith = "\t") const {
+	override string toPrettyStringImpl(bool insertComments = false, int indentationLevel = 0, string indentWith = "\t") const @safe {
 		string s;
 
 		string contents = this.contents;
@@ -5173,7 +5165,7 @@ class TextNode : Element {
 	}
 
 	///.
-	override Element appendChild(Element e) {
+	override Element appendChild(Element e) @safe {
 		assert(0, "Cannot append to a text node");
 	}
 
@@ -5198,14 +5190,14 @@ class Link : Element {
 	/++
 		Constructs `<a href="that href">that text</a>`.
 	+/
-	this(string href, string text) {
+	this(string href, string text) @safe {
 		super("a");
 		setAttribute("href", href);
 		innerText = text;
 	}
 
 	/// ditto
-	this(Document _parentDocument) {
+	this(Document _parentDocument) @safe {
 		super(_parentDocument);
 		this.tagName = "a";
 	}
@@ -5225,14 +5217,14 @@ class Link : Element {
 	@property string path
 +/
 	/// This gets a variable from the URL's query string.
-	string getValue(string name) {
+	string getValue(string name) @safe {
 		auto vars = variablesHash();
 		if(name in vars)
 			return vars[name];
 		return null;
 	}
 
-	private string[string] variablesHash() {
+	private string[string] variablesHash() @safe {
 		string href = getAttribute("href");
 		if(href is null)
 			return null;
@@ -5264,7 +5256,7 @@ class Link : Element {
 	}
 
 	/// Replaces all the stuff after a ? in the link at once with the given assoc array values.
-	/*private*/ void updateQueryString(string[string] vars) {
+	/*private*/ void updateQueryString(string[string] vars) @safe {
 		string href = getAttribute("href");
 
 		auto question = href.indexOf("?");
@@ -5301,7 +5293,7 @@ class Link : Element {
 
 	/// Sets or adds the variable with the given name to the given value
 	/// It automatically URI encodes the values and takes care of the ? and &.
-	override void setValue(string name, string variable) {
+	override void setValue(string name, string variable) @safe {
 		auto vars = variablesHash();
 		vars[name] = variable;
 
@@ -5309,7 +5301,7 @@ class Link : Element {
 	}
 
 	/// Removes the given variable from the query string
-	void removeValue(string name) {
+	void removeValue(string name) @safe {
 		auto vars = variablesHash();
 		vars.remove(name);
 
@@ -5341,13 +5333,13 @@ class Link : Element {
 class Form : Element {
 
 	///.
-	this(Document _parentDocument) {
+	this(Document _parentDocument) @safe {
 		super(_parentDocument);
 		tagName = "form";
 	}
 
 	/// Overrides of the base class implementations that more confirm to *my* conventions when writing form html.
-	override Element addField(string label, string name, string type = "text", FormFieldOptions fieldOptions = FormFieldOptions.none) {
+	override Element addField(string label, string name, string type = "text", FormFieldOptions fieldOptions = FormFieldOptions.none) @safe {
 		auto t = this.querySelector("fieldset div");
 		if(t is null)
 			return super.addField(label, name, type, fieldOptions);
@@ -5356,7 +5348,7 @@ class Form : Element {
 	}
 
 	/// ditto
-	override Element addField(string label, string name, FormFieldOptions fieldOptions) {
+	override Element addField(string label, string name, FormFieldOptions fieldOptions) @safe {
 		auto type = "text";
 		auto t = this.querySelector("fieldset div");
 		if(t is null)
@@ -5366,7 +5358,7 @@ class Form : Element {
 	}
 
 	/// ditto
-	override Element addField(string label, string name, string[string] options, FormFieldOptions fieldOptions = FormFieldOptions.none) {
+	override Element addField(string label, string name, string[string] options, FormFieldOptions fieldOptions = FormFieldOptions.none) @safe {
 		auto t = this.querySelector("fieldset div");
 		if(t is null)
 			return super.addField(label, name, options, fieldOptions);
@@ -5375,7 +5367,7 @@ class Form : Element {
 	}
 
 	/// ditto
-	override void setValue(string field, string value) {
+	override void setValue(string field, string value) @safe {
 		setValue(field, value, true);
 	}
 
@@ -5388,7 +5380,7 @@ class Form : Element {
 
 	/// If you set a value that doesn't exist, it throws an exception if makeNew is false.
 	/// Otherwise, it makes a new input with type=hidden to keep the value.
-	void setValue(string field, string value, bool makeNew) {
+	void setValue(string field, string value, bool makeNew) @safe {
 		auto eles = getField(field);
 		if(eles.length == 0) {
 			if(makeNew) {
@@ -5461,7 +5453,7 @@ class Form : Element {
 
 	/// This takes an array of strings and adds hidden <input> elements for each one of them. Unlike setValue,
 	/// it makes no attempt to find and modify existing elements in the form to the new values.
-	void addValueArray(string key, string[] arrayOfValues) {
+	void addValueArray(string key, string[] arrayOfValues) @safe {
 		foreach(arr; arrayOfValues)
 			addChild("input", key, arr);
 	}
@@ -5469,7 +5461,7 @@ class Form : Element {
 	/// Gets the value of the field; what would be given if it submitted right now. (so
 	/// it handles select boxes and radio buttons too). For checkboxes, if a value isn't
 	/// given, but it is checked, it returns "checked", since null and "" are indistinguishable
-	string getValue(string field) {
+	string getValue(string field) @safe {
 		auto eles = getField(field);
 		if(eles.length == 0)
 			return "";
@@ -5513,7 +5505,7 @@ class Form : Element {
 		Bugs:
 			Doesn't handle repeated elements of the same name nor files.
 	+/
-	string getPostableData() {
+	string getPostableData() @safe {
 		bool[string] namesDone;
 
 		string ret;
@@ -5537,7 +5529,7 @@ class Form : Element {
 	}
 
 	/// Gets the actual elements with the given name
-	Element[] getField(string name) {
+	Element[] getField(string name) @safe {
 		Element[] ret;
 		foreach(e; tree) {
 			if(e.getAttribute("name") == name)
@@ -5547,7 +5539,7 @@ class Form : Element {
 	}
 
 	/// Grabs the <label> with the given for tag, if there is one.
-	Element getLabel(string forId) {
+	Element getLabel(string forId) @safe {
 		foreach(e; tree)
 			if(e.tagName == "label" && e.getAttribute("for") == forId)
 				return e;
@@ -5555,7 +5547,7 @@ class Form : Element {
 	}
 
 	/// Adds a new INPUT field to the end of the form with the given attributes.
-	Element addInput(string name, string value, string type = "hidden") {
+	Element addInput(string name, string value, string type = "hidden") @safe {
 		auto e = new Element(parentDocument, "input", null, true);
 		e.setAttribute("name", name);
 		e.setAttribute("value", value);
@@ -5567,7 +5559,7 @@ class Form : Element {
 	}
 
 	/// Removes the given field from the form. It finds the element and knocks it right out.
-	void removeField(string name) {
+	void removeField(string name) @safe {
 		foreach(e; getField(name))
 			e.parentNode.removeChild(e);
 	}
@@ -5602,7 +5594,7 @@ class Form : Element {
 class Table : Element {
 
 	/// You can make this yourself but you'd generally get one of these object out of a html parse or [Element.make] call.
-	this(Document _parentDocument) {
+	this(Document _parentDocument) @safe {
 		super(_parentDocument);
 		tagName = "table";
 	}
@@ -5665,7 +5657,7 @@ class Table : Element {
 
 		Please note this does not use the html `<col>` element.
 	+/
-	void addColumnClasses(string[] classes...) {
+	void addColumnClasses(string[] classes...) @safe {
 		auto grid = getGrid();
 		foreach(row; grid)
 		foreach(i, cl; classes) {
@@ -5726,7 +5718,7 @@ class Table : Element {
 	}
 
 	/// Returns the `<caption>` element of the table, creating one if it isn't there.
-	Element captionElement() {
+	Element captionElement() @safe {
 		Element cap;
 		foreach(c; children) {
 			if(c.tagName == "caption") {
@@ -5744,12 +5736,12 @@ class Table : Element {
 	}
 
 	/// Returns or sets the text inside the `<caption>` element, creating that element if it isnt' there.
-	@property string caption() {
+	@property string caption() @safe {
 		return captionElement().innerText;
 	}
 
 	/// ditto
-	@property void caption(string text) {
+	@property void caption(string text) @safe {
 		captionElement().innerText = text;
 	}
 
@@ -5763,7 +5755,7 @@ class Table : Element {
 	///
 	/// This is kinda expensive so you should call once when you want the grid,
 	/// then do lookups on the returned array.
-	TableCell[][] getGrid(Element tablePortition = null)
+	TableCell[][] getGrid(Element tablePortition = null) @safe
 		in {
 			if(tablePortition is null)
 				assert(tablePortition is null);
@@ -5856,7 +5848,7 @@ class Table : Element {
 /// Group: implementations
 class TableRow : Element {
 	///.
-	this(Document _parentDocument) {
+	this(Document _parentDocument) @safe {
 		super(_parentDocument);
 		tagName = "tr";
 	}
@@ -5869,12 +5861,12 @@ class TableRow : Element {
 /// Group: implementations
 class TableCell : Element {
 	///.
-	this(Document _parentDocument, string _tagName) {
+	this(Document _parentDocument, string _tagName) @safe {
 		super(_parentDocument, _tagName);
 	}
 
 	/// Gets and sets the row/colspan attributes as integers
-	@property int rowspan() const {
+	@property int rowspan() const @safe {
 		int ret = 1;
 		auto it = getAttribute("rowspan");
 		if(it.length)
@@ -5883,7 +5875,7 @@ class TableCell : Element {
 	}
 
 	/// ditto
-	@property int colspan() const {
+	@property int colspan() const @safe {
 		int ret = 1;
 		auto it = getAttribute("colspan");
 		if(it.length)
@@ -5892,13 +5884,13 @@ class TableCell : Element {
 	}
 
 	/// ditto
-	@property int rowspan(int i) {
+	@property int rowspan(int i) @safe {
 		setAttribute("rowspan", to!string(i));
 		return i;
 	}
 
 	/// ditto
-	@property int colspan(int i) {
+	@property int colspan(int i) @safe {
 		setAttribute("colspan", to!string(i));
 		return i;
 	}
@@ -5911,7 +5903,7 @@ class TableCell : Element {
 class MarkupException : Exception {
 
 	///.
-	this(string message, string file = __FILE__, size_t line = __LINE__) {
+	this(string message, string file = __FILE__, size_t line = __LINE__) @safe {
 		super(message, file, line);
 	}
 }
@@ -5921,7 +5913,7 @@ class MarkupException : Exception {
 class ElementNotFoundException : Exception {
 
 	/// type == kind of element you were looking for and search == a selector describing the search.
-	this(string type, string search, Element searchContext, string file = __FILE__, size_t line = __LINE__) {
+	this(string type, string search, Element searchContext, string file = __FILE__, size_t line = __LINE__) @safe {
 		this.searchContext = searchContext;
 		super("Element of type '"~type~"' matching {"~search~"} not found.", file, line);
 	}
@@ -5982,7 +5974,7 @@ private immutable static string[] htmlInlineElements = [
 
 
 /// helper function for decoding html entities
-int intFromHex(string hex) {
+int intFromHex(string hex) @safe {
 	int place = 1;
 	int value = 0;
 	for(sizediff_t a = hex.length - 1; a >= 0; a--) {
@@ -6030,7 +6022,7 @@ int intFromHex(string hex) {
 		]; // other is white space or a name.
 
 		///.
-		sizediff_t idToken(string str, sizediff_t position) {
+		sizediff_t idToken(string str, sizediff_t position) @safe {
 			sizediff_t tid = -1;
 			char c = str[position];
 			foreach(a, token; selectorTokens)
@@ -6049,7 +6041,7 @@ int intFromHex(string hex) {
 	/// Parts of the CSS selector implementation
 	// look, ma, no phobos!
 	// new lexer by ketmar
-	string[] lexSelector (string selstr) {
+	string[] lexSelector (string selstr) @safe {
 
 		static sizediff_t idToken (string str, size_t stpos) {
 			char c = str[stpos];
@@ -6170,7 +6162,7 @@ int intFromHex(string hex) {
 		}
 		return tokens;
 	}
-	version(unittest_domd_lexer) unittest {
+	version(unittest_domd_lexer) @safe unittest {
 		assert(lexSelector(r" test\=me  /*d*/") == [r"test=me"]);
 		assert(lexSelector(r"div/**/. id") == ["div", ".", "id"]);
 		assert(lexSelector(r" < <") == ["<", "<"]);
@@ -6224,14 +6216,14 @@ int intFromHex(string hex) {
 
 		int separation = -1; /// -1 == only itself; the null selector, 0 == tree, 1 == childNodes, 2 == childAfter, 3 == youngerSibling, 4 == parentOf
 
-		bool isCleanSlateExceptSeparation() {
+		bool isCleanSlateExceptSeparation() @safe {
 			auto cp = this;
 			cp.separation = -1;
 			return cp is SelectorPart.init;
 		}
 
 		///.
-		string toString() {
+		string toString() @safe {
 			string ret;
 			switch(separation) {
 				default: assert(0);
@@ -6278,7 +6270,7 @@ int intFromHex(string hex) {
 
 		// USEFUL
 		/// Returns true if the given element matches this part
-		bool matchElement(Element e, Element scopeElementNow = null) {
+		bool matchElement(Element e, Element scopeElementNow = null) @safe {
 			// FIXME: this can be called a lot of times, and really add up in times according to the profiler.
 			// Each individual call is reasonably fast already, but it adds up.
 			if(e is null) return false;
@@ -6450,7 +6442,7 @@ int intFromHex(string hex) {
 
 		string of;
 
-		this(string text) {
+		this(string text) @safe {
 			auto original = text;
 			consumeWhitespace(text);
 			if(text.startsWith("odd")) {
@@ -6495,7 +6487,7 @@ int intFromHex(string hex) {
 			}
 		}
 
-		string toString() {
+		string toString() @safe {
 			return format("%dn%s%d%s%s", multiplier, adder >= 0 ? "+" : "", adder, of.length ? " of " : "", of);
 		}
 
@@ -6529,12 +6521,12 @@ int intFromHex(string hex) {
 			return false;
 		}
 
-		private void consumeWhitespace(ref string text) {
+		private void consumeWhitespace(ref string text) @safe {
 			while(text.length && text[0] == ' ')
 				text = text[1 .. $];
 		}
 
-		private int parseNumber(ref string text) {
+		private int parseNumber(ref string text) @safe {
 			consumeWhitespace(text);
 			if(text.length == 0) return 0;
 			bool negative = text[0] == '-';
@@ -6554,7 +6546,7 @@ int intFromHex(string hex) {
 
 	// USEFUL
 	/// ditto
-	Element[] getElementsBySelectorParts(Element start, SelectorPart[] parts, Element scopeElementNow = null) {
+	Element[] getElementsBySelectorParts(Element start, SelectorPart[] parts, Element scopeElementNow = null) @safe {
 		Element[] ret;
 		if(!parts.length) {
 			return [start]; // the null selector only matches the start point; it
@@ -6651,7 +6643,7 @@ int intFromHex(string hex) {
 		/++
 			Parses the selector string and constructs the usable structure.
 		+/
-		this(string cssSelector) {
+		this(string cssSelector) @safe {
 			components = parseSelectorString(cssSelector);
 			original = cssSelector;
 		}
@@ -6668,7 +6660,7 @@ int intFromHex(string hex) {
 			auto lazySelectorRange = element.tree.filter!(e => sel.matchElement(e))(document.root);
 			---
 		+/
-		bool matchesElement(Element e, Element relativeTo = null) {
+		bool matchesElement(Element e, Element relativeTo = null) @safe {
 			foreach(component; components)
 				if(component.matchElement(e, relativeTo))
 					return true;
@@ -6679,7 +6671,7 @@ int intFromHex(string hex) {
 		/++
 			Reciprocal of [Element.querySelectorAll]
 		+/
-		Element[] getMatchingElements(Element start, Element relativeTo = null) {
+		Element[] getMatchingElements(Element start, Element relativeTo = null) @safe {
 			Element[] ret;
 			foreach(component; components)
 				ret ~= getElementsBySelectorParts(start, component.parts, relativeTo);
@@ -6690,13 +6682,13 @@ int intFromHex(string hex) {
 			Like [getMatchingElements], but returns a lazy range. Be careful
 			about mutating the dom as you iterate through this.
 		+/
-		auto getMatchingElementsLazy(Element start, Element relativeTo = null) {
+		auto getMatchingElementsLazy(Element start, Element relativeTo = null) @safe {
 			return start.tree.filter!(a => this.matchesElement(a, relativeTo));
 		}
 
 
 		/// Returns the string this was built from
-		string toString() {
+		string toString() @safe {
 			return original;
 		}
 
@@ -6706,7 +6698,7 @@ int intFromHex(string hex) {
 
 			(may not match the original, this is mostly for debugging right now but in the future might be useful for pretty-printing)
 		+/
-		string parsedToString() {
+		string parsedToString() @safe {
 			string ret;
 
 			foreach(idx, component; components) {
@@ -6724,7 +6716,7 @@ int intFromHex(string hex) {
 		SelectorPart[] parts;
 
 		///.
-		string toString() {
+		string toString() @safe {
 			string ret;
 			foreach(part; parts)
 				ret ~= part.toString();
@@ -6733,13 +6725,13 @@ int intFromHex(string hex) {
 
 		// USEFUL
 		///.
-		Element[] getElements(Element start, Element relativeTo = null) {
+		Element[] getElements(Element start, Element relativeTo = null) @safe {
 			return removeDuplicates(getElementsBySelectorParts(start, parts, relativeTo));
 		}
 
 		// USEFUL (but not implemented)
 		/// If relativeTo == null, it assumes the root of the parent document.
-		bool matchElement(Element e, Element relativeTo = null) {
+		bool matchElement(Element e, Element relativeTo = null) @safe {
 			if(e is null) return false;
 			Element where = e;
 			int lastSeparation = -1;
@@ -6845,13 +6837,13 @@ int intFromHex(string hex) {
 
 		// the string should NOT have commas. Use parseSelectorString for that instead
 		///.
-		static SelectorComponent fromString(string selector) {
+		static SelectorComponent fromString(string selector) @safe {
 			return parseSelector(lexSelector(selector));
 		}
 	}
 
 	///.
-	SelectorComponent[] parseSelectorString(string selector, bool caseSensitiveTags = true) {
+	SelectorComponent[] parseSelectorString(string selector, bool caseSensitiveTags = true) @safe {
 		SelectorComponent[] ret;
 		auto tokens = lexSelector(selector); // this will parse commas too
 		// and now do comma-separated slices (i haz phobosophobia!)
@@ -6871,7 +6863,7 @@ int intFromHex(string hex) {
 	}
 
 	///.
-	SelectorComponent parseSelector(string[] tokens, bool caseSensitiveTags = true) {
+	SelectorComponent parseSelector(string[] tokens, bool caseSensitiveTags = true) @safe {
 		SelectorComponent s;
 
 		SelectorPart current;
@@ -7193,7 +7185,7 @@ int intFromHex(string hex) {
 	}
 
 ///.
-Element[] removeDuplicates(Element[] input) {
+Element[] removeDuplicates(Element[] input) @safe {
 	Element[] ret;
 
 	bool[Element] already;
@@ -7215,7 +7207,7 @@ Element[] removeDuplicates(Element[] input) {
 /// From here, you can start to make a layout engine for the box model and have a css aware browser.
 class CssStyle {
 	///.
-	this(string rule, string content) {
+	this(string rule, string content) @safe {
 		rule = rule.strip();
 		content = content.strip();
 
@@ -7249,7 +7241,7 @@ class CssStyle {
 	}
 
 	///.
-	Specificity getSpecificityOfRule(string rule) {
+	Specificity getSpecificityOfRule(string rule) @safe {
 		Specificity s;
 		if(rule.length == 0) { // inline
 		//	s.important = 2;
@@ -7298,7 +7290,7 @@ class CssStyle {
 	}
 
 	/// takes dash style name
-	string getValue(string name) {
+	string getValue(string name) @safe {
 		foreach(property; properties)
 			if(property.name == name)
 				return property.value;
@@ -7306,7 +7298,7 @@ class CssStyle {
 	}
 
 	/// takes dash style name
-	string setValue(string name, string value, Specificity newSpecificity, bool explicit = true) {
+	string setValue(string name, string value, Specificity newSpecificity, bool explicit = true) @safe {
 		value = value.replace("! important", "!important");
 		if(value.indexOf("!important") != -1) {
 			newSpecificity.important = 1; // FIXME
@@ -7340,7 +7332,7 @@ class CssStyle {
 		return value;
 	}
 
-	private void expandQuadShort(string name, string value, Specificity specificity) {
+	private void expandQuadShort(string name, string value, Specificity specificity) @safe {
 		auto parts = value.split(" ");
 		switch(parts.length) {
 			case 1:
@@ -7374,7 +7366,7 @@ class CssStyle {
 	}
 
 	///.
-	void expandShortForm(Property p, Specificity specificity) {
+	void expandShortForm(Property p, Specificity specificity) @safe {
 		switch(p.name) {
 			case "margin":
 			case "padding":
@@ -7402,7 +7394,7 @@ class CssStyle {
 	}
 
 	///.
-	override string toString() {
+	override string toString() @safe {
 		string ret;
 		if(originatingRule.length)
 			ret = originatingRule ~ " {";
@@ -7426,7 +7418,7 @@ class CssStyle {
 	}
 }
 
-string cssUrl(string url) {
+string cssUrl(string url) @safe {
 	return "url(\"" ~ url ~ "\")";
 }
 
@@ -7483,12 +7475,12 @@ final class Stack(T) {
 final class ElementStream {
 
 	///.
-	@property Element front() {
+	@property Element front() @safe {
 		return current.element;
 	}
 
 	/// Use Element.tree instead.
-	this(Element start) {
+	this(Element start) @safe {
 		current.element = start;
 		current.childPosition = -1;
 		isEmpty = false;
@@ -7502,7 +7494,7 @@ final class ElementStream {
 	*/
 
 	///.
-	void popFront() {
+	void popFront() @safe {
 	    more:
 	    	if(isEmpty) return;
 
@@ -7524,7 +7516,7 @@ final class ElementStream {
 	}
 
 	/// You should call this when you remove an element from the tree. It then doesn't recurse into that node and adjusts the current position, keeping the range stable.
-	void currentKilled() {
+	void currentKilled() @safe {
 		if(stack.empty) // should never happen
 			isEmpty = true;
 		else {
@@ -7534,7 +7526,7 @@ final class ElementStream {
 	}
 
 	///.
-	@property bool empty() {
+	@property bool empty() @safe {
 		return isEmpty;
 	}
 
@@ -7556,7 +7548,7 @@ final class ElementStream {
 
 // unbelievable.
 // Don't use any of these in your own code. Instead, try to use phobos or roll your own, as I might kill these at any time.
-sizediff_t indexOfBytes(immutable(ubyte)[] haystack, immutable(ubyte)[] needle) {
+sizediff_t indexOfBytes(immutable(ubyte)[] haystack, immutable(ubyte)[] needle) @safe {
 	auto found = std.algorithm.searching.find(haystack, needle);
 	if(found.length == 0)
 		return -1;
@@ -7587,7 +7579,7 @@ package bool isInArray(T)(T item, T[] arr) {
 	return false;
 }
 
-private string[string] aadup(in string[string] arr) {
+private string[string] aadup(in string[string] arr) @safe {
 	string[string] ret;
 	foreach(k, v; arr)
 		ret[k] = v;
@@ -7904,23 +7896,23 @@ immutable dchar[] availableEntitiesValues =
 
 /// used for DOM events
 version(dom_with_events)
-alias EventHandler = void delegate(Element handlerAttachedTo, Event event);
+alias EventHandler = void delegate(Element handlerAttachedTo, Event event) @safe;
 
 /// This is a DOM event, like in javascript. Note that this library never fires events - it is only here for you to use if you want it.
 version(dom_with_events)
 class Event {
-	this(string eventName, Element target) {
+	this(string eventName, Element target) @safe {
 		this.eventName = eventName;
 		this.srcElement = target;
 	}
 
 	/// Prevents the default event handler (if there is one) from being called
-	void preventDefault() {
+	void preventDefault() @safe {
 		defaultPrevented = true;
 	}
 
 	/// Stops the event propagation immediately.
-	void stopPropagation() {
+	void stopPropagation() @safe {
 		propagationStopped = true;
 	}
 
@@ -7941,7 +7933,7 @@ class Event {
 	bool isBubbling;
 
 	/// this sends it only to the target. If you want propagation, use dispatch() instead.
-	void send() {
+	void send() @safe {
 		if(srcElement is null)
 			return;
 
@@ -7957,7 +7949,7 @@ class Event {
 	}
 
 	/// this dispatches the element using the capture -> target -> bubble process
-	void dispatch() {
+	void dispatch() @safe {
 		if(srcElement is null)
 			return;
 
@@ -8022,25 +8014,25 @@ struct FormFieldOptions {
 
 
 	// convenience methods to quickly get some options
-	@property static FormFieldOptions none() {
+	@property static FormFieldOptions none() @safe {
 		FormFieldOptions f;
 		return f;
 	}
 
-	static FormFieldOptions required() {
+	static FormFieldOptions required() @safe {
 		FormFieldOptions f;
 		f.isRequired = true;
 		return f;
 	}
 
-	static FormFieldOptions regex(string pattern, bool required = false) {
+	static FormFieldOptions regex(string pattern, bool required = false) @safe {
 		FormFieldOptions f;
 		f.pattern = pattern;
 		f.isRequired = required;
 		return f;
 	}
 
-	static FormFieldOptions fromElement(Element e) {
+	static FormFieldOptions fromElement(Element e) @safe {
 		FormFieldOptions f;
 		if(e.hasAttribute("required"))
 			f.isRequired = true;
@@ -8051,7 +8043,7 @@ struct FormFieldOptions {
 		return f;
 	}
 
-	Element applyToElement(Element e) {
+	Element applyToElement(Element e) @safe {
 		if(this.isRequired)
 			e.setAttribute("required", "required");
 		if(this.pattern.length)
@@ -8069,13 +8061,13 @@ else
 class Utf8Stream {
 	protected:
 		// these two should be overridden in subclasses to actually do the stream magic
-		string getMore() {
+		string getMore() @safe {
 			if(getMoreHelper !is null)
 				return getMoreHelper();
 			return null;
 		}
 
-		bool hasMore() {
+		bool hasMore() @safe {
 			if(hasMoreHelper !is null)
 				return hasMoreHelper();
 			return false;
@@ -8083,11 +8075,11 @@ class Utf8Stream {
 		// the rest should be ok
 
 	public:
-		this(string d) {
+		this(string d) @safe {
 			this.data = d;
 		}
 
-		this(string delegate() getMoreHelper, bool delegate() hasMoreHelper) {
+		this(string delegate() @safe getMoreHelper, bool delegate() @safe hasMoreHelper) @safe {
 			this.getMoreHelper = getMoreHelper;
 			this.hasMoreHelper = hasMoreHelper;
 
@@ -8097,7 +8089,7 @@ class Utf8Stream {
 			// stdout.flush();
 		}
 
-		@property final size_t length() {
+		@property final size_t length() @safe {
 			// the parser checks length primarily directly before accessing the next character
 			// so this is the place we'll hook to append more if possible and needed.
 			if(lastIdx + 1 >= data.length && hasMore()) {
@@ -8106,19 +8098,19 @@ class Utf8Stream {
 			return data.length;
 		}
 
-		final char opIndex(size_t idx) {
+		final char opIndex(size_t idx) @safe {
 			if(idx > lastIdx)
 				lastIdx = idx;
 			return data[idx];
 		}
 
-		final string opSlice(size_t start, size_t end) {
+		final string opSlice(size_t start, size_t end) @safe {
 			if(end > lastIdx)
 				lastIdx = end;
 			return data[start .. end];
 		}
 
-		final size_t opDollar() {
+		final size_t opDollar() @safe {
 			return length();
 		}
 
@@ -8132,7 +8124,7 @@ class Utf8Stream {
 			return this;
 		}
 
-		final Utf8Stream opAssign(string rhs) {
+		final Utf8Stream opAssign(string rhs) @safe {
 			this.data = rhs;
 			return this;
 		}
@@ -8141,8 +8133,8 @@ class Utf8Stream {
 
 		size_t lastIdx;
 
-		bool delegate() hasMoreHelper;
-		string delegate() getMoreHelper;
+		bool delegate() @safe hasMoreHelper;
+		string delegate() @safe getMoreHelper;
 
 
 		/+
@@ -8164,7 +8156,7 @@ class Utf8Stream {
 	History:
 		Added March 25, 2022 (dub v10.8)
 +/
-string normalizeWhitespace(string text) {
+string normalizeWhitespace(string text) @safe {
 	string ret;
 	ret.reserve(text.length);
 	bool lastWasWhite = true;
@@ -8184,12 +8176,12 @@ string normalizeWhitespace(string text) {
 	return ret.stripRight;
 }
 
-unittest {
+@safe unittest {
 	assert(normalizeWhitespace("    foo   ") == "foo");
 	assert(normalizeWhitespace("    f\n \t oo   ") == "f oo");
 }
 
-unittest {
+@safe unittest {
 	Document document;
 
 	document = new Document("<test> foo \r </test>");
@@ -8233,13 +8225,13 @@ struct Stringplate {
 	}
 }
 ///
-unittest {
+@safe unittest {
 	auto stringplate = Stringplate("#bar(.foo($foo), .baz($baz))");
 	assert(stringplate.expand.innerHTML == `<div id="bar"><div class="foo">$foo</div><div class="baz">$baz</div></div>`);
 }
 +/
 
-bool allAreInlineHtml(const(Element)[] children, const string[] inlineElements) {
+bool allAreInlineHtml(const(Element)[] children, const string[] inlineElements) @safe {
 	foreach(child; children) {
 		if(child.nodeType == NodeType.Text && child.nodeValue.strip.length) {
 			// cool
@@ -8253,11 +8245,11 @@ bool allAreInlineHtml(const(Element)[] children, const string[] inlineElements) 
 	return true;
 }
 
-private bool isSimpleWhite(dchar c) {
+private bool isSimpleWhite(dchar c) @safe {
 	return c == ' ' || c == '\r' || c == '\n' || c == '\t';
 }
 
-unittest {
+@safe unittest {
 	// Test for issue #120
 	string s = `<html>
 	<body>
@@ -8274,7 +8266,7 @@ unittest {
 			"paragraph order incorrect:\n" ~ s2);
 }
 
-unittest {
+@safe unittest {
 	// test for suncarpet email dec 24 2019
 	// arbitrary id asduiwh
 	auto document = new Document("<html>
@@ -8331,7 +8323,7 @@ unittest {
 	//assert(foo.querySelectorAll("#foo > div").length == 2);
 }
 
-unittest {
+@safe unittest {
 	// based on https://developer.mozilla.org/en-US/docs/Web/API/Element/closest example
 	auto document = new Document(`<article>
   <div id="div-01">Here is div-01
@@ -8351,7 +8343,7 @@ unittest {
 	assert(el.closest("p, div") is el);
 }
 
-unittest {
+@safe unittest {
 	// https://developer.mozilla.org/en-US/docs/Web/CSS/:is
 	auto document = new Document(`<test>
 		<div class="foo"><p>cool</p><span>bar</span></div>
@@ -8362,7 +8354,7 @@ unittest {
 	assert(document.querySelector("div:where(.foo)") !is null);
 }
 
-unittest {
+@safe unittest {
 immutable string html = q{
 <root>
 <div class="roundedbox">
@@ -8405,7 +8397,7 @@ immutable string html = q{
   assert(rd.getAttribute("href") == "/reviews/8832");
 }
 
-unittest {
+@safe unittest {
 	try {
 		auto doc = new XmlDocument("<testxmlns:foo=\"/\"></test>");
 		assert(0);
@@ -8414,7 +8406,7 @@ unittest {
 	}
 }
 
-unittest {
+@safe unittest {
 	// toPrettyString is not stable, but these are some best-effort attempts
 	// despite these being in a test, I might change these anyway!
 	assert(Element.make("a").toPrettyString == "<a></a>");
@@ -8492,7 +8484,7 @@ auto str = `<!DOCTYPE html>
 	}
 }
 
-unittest {
+@safe unittest {
 	auto document = new Document("<foo><items><item><title>test</title><desc>desc</desc></item></items></foo>");
 	auto items = document.root.requireSelector("> items");
 	auto item = items.requireSelector("> item");
@@ -8509,7 +8501,7 @@ unittest {
 	assert(title.innerText == "test");
 }
 
-unittest {
+@safe unittest {
 	auto document = new Document("broken"); // just ensuring it doesn't crash
 }
 
