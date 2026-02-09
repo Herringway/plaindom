@@ -1974,7 +1974,7 @@ class Element : DomParent {
 	}
 	out(ret) {
 		assert(ret !is null);
-		assert((cast(DocumentFragment) this !is null) || (ret.parentNode is this), ret.toString);// e.parentNode ? e.parentNode.toString : "null");
+		assert((ret.parentNode is this), ret.toString);// e.parentNode ? e.parentNode.toString : "null");
 		assert(ret.parentDocument is this.parentDocument);
 	}
 	do {
@@ -2227,16 +2227,7 @@ class Element : DomParent {
 		if(parent_ is null)
 			return null;
 
-		auto p = parent_.asElement;
-
-		if(cast(inout(DocumentFragment)) p) {
-			if(p.parent_ is null)
-				return null;
-			else
-				return p.parent_.asElement;
-		}
-
-		return p;
+		return parent_.asElement;
 	}
 
 	//protected
@@ -2937,7 +2928,7 @@ class Element : DomParent {
 			assert(e !is this);
 		}
 		out (ret) {
-			assert((cast(DocumentFragment) this !is null) || (e.parentNode is this), e.toString);// e.parentNode ? e.parentNode.toString : "null");
+			assert((e.parentNode is this), e.toString);// e.parentNode ? e.parentNode.toString : "null");
 			assert(e.parentDocument is this.parentDocument);
 			assert(e is ret);
 		}
@@ -4400,15 +4391,15 @@ class DocumentFragment : Element {
 	with(new DocumentFragment(Html(""))) {
 		assert(!childNodes.length);
 		assert(!parentNode);
+		assert(toString() == "");
 	}
 	with(new DocumentFragment(Html("<b></b>"))) {
 		assert(childNodes.length == 1);
 	}
 	with(new DocumentFragment(Html("<img><b></b>"))) {
 		assert(childNodes.length == 2);
-		// FIXME
-		//assert(childNodes[0].nextSibling);
-		//assert(childNodes[0].nextSibling.tagName == "b");
+		assert(childNodes[0].nextSibling);
+		assert(childNodes[0].nextSibling.tagName == "b");
 	}
 }
 
