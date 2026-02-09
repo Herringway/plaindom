@@ -2780,43 +2780,6 @@ class Element : DomParent {
 		return children;
 	}
 
-	/++
-		HTML5's dataset property. It is an alternate view into attributes with the data- prefix.
-		Given `<a data-my-property="cool" />`, we get `assert(a.dataset.myProperty == "cool");`
-	+/
-	@property DataSet dataset() @safe pure {
-		return DataSet(this);
-	}
-
-	/++
-		Gives dot/opIndex access to attributes
-		---
-		ele.attrs.largeSrc = "foo"; // same as ele.setAttribute("largeSrc", "foo")
-		---
-	+/
-	@property AttributeSet attrs() @safe pure {
-		return AttributeSet(this);
-	}
-
-	/++
-		Provides both string and object style (like in Javascript) access to the style attribute.
-
-		---
-		element.style.color = "red"; // translates into setting `color: red;` in the `style` attribute
-		---
-	+/
-	@property ElementStyle style() @safe pure {
-		return ElementStyle(this);
-	}
-
-	/++
-		This sets the style attribute with a string.
-	+/
-	@property ElementStyle style(string s) @safe pure {
-		this.setAttribute("style", s);
-		return this.style;
-	}
-
 	private void parseAttributes(string[] whichOnes = null) @safe pure {
 /+
 		if(whichOnes is null)
@@ -2839,36 +2802,6 @@ class Element : DomParent {
 +/
 	}
 
-
-	// if you change something here, it won't apply... FIXME const? but changing it would be nice if it applies to the style attribute too though you should use style there.
-
-	// the next few methods are for implementing interactive kind of things
-	private CssStyle _computedStyle;
-
-	/// Don't use this. It can try to parse out the style element but it isn't complete and if I get back to it, it won't be for a while.
-	@property CssStyle computedStyle() @safe pure {
-		if(_computedStyle is null) {
-			auto style = this.getAttribute("style");
-		/* we'll treat shitty old html attributes as css here */
-			if(this.hasAttribute("width"))
-				style ~= "; width: " ~ this.attrs.width;
-			if(this.hasAttribute("height"))
-				style ~= "; height: " ~ this.attrs.height;
-			if(this.hasAttribute("bgcolor"))
-				style ~= "; background-color: " ~ this.attrs.bgcolor;
-			if(this.tagName == "body" && this.hasAttribute("text"))
-				style ~= "; color: " ~ this.attrs.text;
-			if(this.hasAttribute("color"))
-				style ~= "; color: " ~ this.attrs.color;
-		/* done */
-
-
-			_computedStyle = new CssStyle(null, style); // gives at least something to work with
-		}
-		return _computedStyle;
-	}
-
-	// Back to the regular dom functions
 
     public:
 
@@ -3874,7 +3807,7 @@ class Element : DomParent {
 	}
 
 }
-// computedStyle could argubaly be removed to bring size down
+
 //pragma(msg, __traits(classInstanceSize, Element));
 //pragma(msg, Element.tupleof);
 
@@ -4068,183 +4001,6 @@ struct ElementCollection {
 	ElementCollection opBinary(string op : "~")(ElementCollection rhs) {
 		return ElementCollection(this.elements ~ rhs.elements);
 	}
-}
-
-
-/// this puts in operators and opDispatch to handle string indexes and properties, forwarding to get and set functions.
-/// Group: implementations
-mixin template JavascriptStyleDispatch() {
-	///
-	string opDispatch(string name)(string v = null) if(name != "popFront") { // popFront will make this look like a range. Do not want.
-		if(v !is null)
-			return set(name, v);
-		return get(name);
-	}
-
-	///
-	string opIndex(string key) const @safe pure {
-		return get(key);
-	}
-
-	///
-	string opIndexAssign(string value, string field) @safe pure {
-		return set(field, value);
-	}
-
-	// FIXME: doesn't seem to work
-	string* opBinary(string op)(string key)  if(op == "in") {
-		return key in fields;
-	}
-}
-
-/// A proxy object to do the Element class' dataset property. See Element.dataset for more info.
-///
-/// Do not create this object directly.
-/// Group: implementations
-struct DataSet {
-	///
-	this(Element e) @safe pure {
-		this._element = e;
-	}
-
-	private Element _element;
-	///
-	string set(string name, string value) @safe pure {
-		_element.setAttribute("data-" ~ unCamelCase(name), value);
-		return value;
-	}
-
-	///
-	string get(string name) const @safe pure {
-		return _element.getAttribute("data-" ~ unCamelCase(name));
-	}
-
-	///
-	mixin JavascriptStyleDispatch!();
-}
-
-/// Proxy object for attributes which will replace the main opDispatch eventually
-/// Group: implementations
-struct AttributeSet {
-	/// Generally, you shouldn't create this yourself, since you can use [Element.attrs] instead.
-	this(Element e) @safe pure {
-		this._element = e;
-	}
-
-	private Element _element;
-	/++
-		Sets a `value` for attribute with `name`. If the attribute doesn't exist, this will create it, even if `value` is `null`.
-	+/
-	string set(string name, string value) @safe pure {
-		_element.setAttribute(name, value);
-		return value;
-	}
-
-	/++
-		Provides support for testing presence of an attribute with the `in` operator.
-
-		History:
-			Added December 16, 2020 (dub v10.10)
-	+/
-	auto opBinaryRight(string op : "in")(string name) const
-	{
-		return name in _element.attributes;
-	}
-	///
-	@safe pure unittest
-	{
-		auto doc = new XmlDocument(`<test attr="test"/>`);
-		assert("attr" in doc.root.attrs);
-		assert("test" !in doc.root.attrs);
-	}
-
-	/++
-		Returns the value of attribute `name`, or `null` if doesn't exist
-	+/
-	string get(string name) const @safe pure {
-		return _element.getAttribute(name);
-	}
-
-	///
-	mixin JavascriptStyleDispatch!();
-}
-
-
-
-/// for style, i want to be able to set it with a string like a plain attribute,
-/// but also be able to do properties Javascript style.
-
-/// Group: implementations
-struct ElementStyle {
-	this(Element parent) @safe pure {
-		_element = parent;
-	}
-
-	Element _element;
-
-	@property ref inout(string) _attribute() inout @safe pure {
-		auto s = "style" in _element.attributes;
-		enforce(s);
-		return *s;
-	}
-
-	alias _attribute this; // this is meant to allow element.style = element.style ~ " string "; to still work.
-
-	string set(string name, string value) @safe pure {
-		if(name.length == 0)
-			return value;
-		if(name == "cssFloat")
-			name = "float";
-		else
-			name = unCamelCase(name);
-		auto r = rules();
-		r[name] = value;
-
-		_attribute = "";
-		foreach(k, v; r) {
-			if(v is null || v.length == 0) /* css can't do empty rules anyway so we'll use that to remove */
-				continue;
-			if(_attribute.length)
-				_attribute ~= " ";
-			_attribute ~= k ~ ": " ~ v ~ ";";
-		}
-
-		_element.setAttribute("style", _attribute); // this is to trigger the observer call
-
-		return value;
-	}
-	string get(string name) const @safe pure {
-		if(name == "cssFloat")
-			name = "float";
-		else
-			name = unCamelCase(name);
-		auto r = rules();
-		if(name in r)
-			return r[name];
-		return null;
-	}
-
-	string[string] rules() const @safe pure {
-		string[string] ret;
-		foreach(rule;  _attribute.split(";")) {
-			rule = rule.strip();
-			if(rule.length == 0)
-				continue;
-			auto idx = rule.indexOf(":");
-			if(idx == -1)
-				ret[rule] = "";
-			else {
-				auto name = rule[0 .. idx].strip();
-				auto value = rule[idx + 1 .. $].strip();
-
-				ret[name] = value;
-			}
-		}
-
-		return ret;
-	}
-
-	mixin JavascriptStyleDispatch!();
 }
 
 /// Converts a camel cased propertyName to a css style dashed property-name
