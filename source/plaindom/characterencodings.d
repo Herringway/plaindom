@@ -50,7 +50,7 @@ import std.conv;
 // FIXME: use replacement char here instead
 
 /// Like convertToUtf8, but if the encoding is unknown, it just strips all chars > 127 and calls it done instead of throwing
-string convertToUtf8Lossy(immutable(ubyte)[] data, string dataCharacterEncoding) @safe {
+string convertToUtf8Lossy(immutable(ubyte)[] data, string dataCharacterEncoding) @safe pure {
 	try {
 		auto ret = convertToUtf8(data, dataCharacterEncoding);
 		import std.utf;
@@ -68,7 +68,7 @@ string convertToUtf8Lossy(immutable(ubyte)[] data, string dataCharacterEncoding)
 }
 
 /// Takes data from a given character encoding and returns it as UTF-8
-string convertToUtf8(immutable(ubyte)[] data, string dataCharacterEncoding) @safe {
+string convertToUtf8(immutable(ubyte)[] data, string dataCharacterEncoding) @safe pure {
 	// just to normalize the passed string...
 	auto encoding = dataCharacterEncoding.toLower();
 	encoding = encoding.replace(" ", "");
@@ -143,7 +143,7 @@ string convertToUtf8(immutable(ubyte)[] data, string dataCharacterEncoding) @saf
 /// Tries to determine the current encoding based on the content.
 /// Only really helps with the UTF variants.
 /// Returns null if it can't be reasonably sure.
-string tryToDetermineEncoding(in immutable(ubyte)[] rawdata) @safe {
+string tryToDetermineEncoding(in immutable(ubyte)[] rawdata) @safe pure {
 	import std.utf;
 	try {
 		validate!string(cast(string) rawdata);
@@ -179,7 +179,7 @@ string tryToDetermineEncoding(in immutable(ubyte)[] rawdata) @safe {
 
 // this function actually does the work, using the translation tables
 // below.
-string decodeImpl(in ubyte[] data, in dchar[] chars160to255, in dchar[] chars128to159 = null, in dchar[] chars0to127 = null) @safe
+string decodeImpl(in ubyte[] data, in dchar[] chars160to255, in dchar[] chars128to159 = null, in dchar[] chars0to127 = null) @safe pure
 	in {
 		assert(chars160to255.length == 256 - 160);
 		assert(chars128to159 is null || chars128to159.length == 160 - 128);
