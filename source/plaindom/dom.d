@@ -621,17 +621,6 @@ class Document : DomParent {
 			return TextNode.fromUndecodedString(this, data[start..pos]);
 		}
 
-		// this is obsolete!
-		RawSource readCDataNode() @safe pure {
-			auto start = pos;
-			while(pos < data.length && data[pos] != '<') {
-				pos++;
-			}
-
-			return new RawSource(this, data[start..pos]);
-		}
-
-
 		static struct Ele {
 			int type; // element or closing tag or nothing
 				/*
