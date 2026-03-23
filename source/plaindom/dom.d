@@ -3838,14 +3838,7 @@ class XmlDocument : Document {
 	auto document = new Document(str, true, true);
 	assert(document.requireSelector("style").children[0].tagName == "#raw");
 	assert(document.requireSelector("script").children[0].tagName == "#raw");
-	try {
-		auto xml = new XmlDocument(str);
-		assert(0);
-	} catch(MarkupException e) {
-		// failure expected, script special case is not valid XML without a dtd (which isn't here)
-	}
-	//assert(xml.requireSelector("style").children[0].tagName == "#raw");
-	//assert(xml.requireSelector("script").children[0].tagName == "#raw");
+	assertThrown(new XmlDocument(str));
 }
 
 
