@@ -1169,12 +1169,14 @@ class Document : DomParent {
 		if(root !is null)
 			root.parent_ = this;
 
-		if(!strict) // in strict mode, we'll just ignore stuff after the xml
-		while(r.type != 4) {
-			r = readElement();
-			if(r.type != 4 && r.type != 2) { // if not empty and not ignored
-				if(r.element !is null)
-					piecesAfterRoot ~= r.element;
+		unparsed = data[pos .. $];
+		if(!strict) { // in strict mode, we'll just ignore stuff after the xml
+			while(r.type != 4) {
+				r = readElement();
+				if(r.type != 4 && r.type != 2) { // if not empty and not ignored
+					if(r.element !is null)
+						piecesAfterRoot ~= r.element;
+				}
 			}
 		}
 
@@ -1497,6 +1499,8 @@ class Document : DomParent {
 
 	/// stuff after the root, only stored in non-strict mode and not used in toString, but available in case you want it
 	Element[] piecesAfterRoot;
+	/// Ditto, but unparsed
+	string unparsed;
 
 	///.
 	bool loose;
