@@ -52,9 +52,12 @@ import std.algorithm.searching;
 import std.algorithm.sorting;
 import std.algorithm.comparison;
 import std.algorithm.iteration;
+import std.algorithm.mutation;
 import std.array;
+import std.ascii : isDigit;
 import std.conv;
 import std.exception;
+import std.functional;
 import std.range;
 import std.stdio;
 import std.string;
@@ -4214,85 +4217,50 @@ string xmlEntitiesEncode(string data) @safe pure {
 /// This helper function is used for decoding html entities. It has a hard-coded list of entities and characters.
 /// Group: core_functionality
 dchar parseEntity(in char[] entity) @safe pure {
-
-	char[128] buffer;
-	int bpos;
-	foreach(char c; entity[1 .. $-1])
-		buffer[bpos++] = c;
-	char[] entityAsString = buffer[0 .. bpos];
-
-	if (auto foundEntity = entityAsString in availableEntities) {
+	assert(entity != "", "Deformed entity - Missing &");
+	if (auto foundEntity = entity[1 .. $ - 1] in availableEntities) {
 		return *foundEntity;
 	}
 
-	switch(entity[1..$-1]) {
-		case "quot":
-			return '"';
-		case "apos":
-			return '\'';
-		case "lt":
-			return '<';
-		case "gt":
-			return '>';
-		case "amp":
-			return '&';
-		// the next are html rather than xml
+	if (entity[1] == '#') {
+		if (entity[2] == 'x' /*|| (!strict && entity[2] == 'X')*/) {
+			return cast(dchar)entity[3 .. $ - 1].to!uint(16);
+		} else {
+			// there shouldn't be any non-digits, but if there are, they're meaningless
+			const decimal = entity[2 .. $ - 1].strip!(not!isDigit);
 
-		// and handling numeric entities
-		default:
-			if(entity[1] == '#') {
-				if(entity[2] == 'x' /*|| (!strict && entity[2] == 'X')*/) {
-					auto hex = entity[3..$-1];
+			if(decimal.length == 0) {
+				return ' '; // this is really broken html
+			}
 
-					auto p = intFromHex(to!string(hex).toLower());
-					return cast(dchar) p;
-				} else {
-					auto decimal = entity[2..$-1];
-
-					// dealing with broken html entities
-					while(decimal.length && (decimal[0] < '0' || decimal[0] >   '9'))
-						decimal = decimal[1 .. $];
-
-					while(decimal.length && (decimal[$-1] < '0' || decimal[$-1] >   '9'))
-						decimal = decimal[0 .. $ - 1];
-
-					if(decimal.length == 0)
-						return ' '; // this is really broken html
-					// done with dealing with broken stuff
-
-					auto p = std.conv.to!int(decimal);
-					return cast(dchar) p;
-				}
-			} else
-				return '\ufffd'; // replacement character diamond thing
+			return cast(dchar)decimal.to!uint(10);
+		}
+	} else {
+		return replacementDchar; // bogus entity, bogus character
 	}
-
-	assert(0);
 }
 
 @safe pure unittest {
-	// not in the binary search
+	// random named entities
 	assert(parseEntity("&quot;") == '"');
-
-	// numeric value
-	assert(parseEntity("&#x0534;") == '\u0534');
-
-	// not found at all
-	assert(parseEntity("&asdasdasd;") == '\ufffd');
-
-	// random values in the bin search
 	assert(parseEntity("&Tab;") == '\t');
 	assert(parseEntity("&raquo;") == '\&raquo;');
-
-	// near the middle and edges of the bin search
 	assert(parseEntity("&ascr;") == '\U0001d4b6');
 	assert(parseEntity("&ast;") == '\u002a');
 	assert(parseEntity("&Acirc;") == '\u00c2');
 	assert(parseEntity("&AElig;") == '\u00c6');
 	assert(parseEntity("&zwnj;") == '\u200c');
 	assert(parseEntity("&InvisibleComma;") == '\u2063');
-
 	assert(parseEntity("&CounterClockwiseContourIntegral;") == '\u2233');
+
+	// numeric value
+	assert(parseEntity("&#x0534;") == '\u0534');
+	assert(parseEntity("&#10084;") == '❤');
+	assert(parseEntity("&#afksjdfksdjf10084dgjkdfjgjertej;") == '❤');
+	assert(parseEntity("&#;") == ' ');
+
+	// not found at all
+	assert(parseEntity("&asdasdasd;") == '\ufffd');
 }
 
 
@@ -5582,31 +5550,6 @@ private immutable static string[] htmlRawSourceElements = [
 private immutable static string[] htmlInlineElements = [
 	"span", "strong", "em", "b", "i", "a"
 ];
-
-
-/// helper function for decoding html entities
-int intFromHex(string hex) @safe pure {
-	int place = 1;
-	int value = 0;
-	for(sizediff_t a = hex.length - 1; a >= 0; a--) {
-		int v;
-		char q = hex[a];
-		if( q >= '0' && q <= '9')
-			v = q - '0';
-		else if (q >= 'a' && q <= 'f')
-			v = q - 'a' + 10;
-		else if (q >= 'A' && q <= 'F')
-			v = q - 'A' + 10;
-		else throw new Exception("Illegal hex character: " ~ q);
-
-		value += v * place;
-
-		place *= 16;
-	}
-
-	return value;
-}
-
 
 // CSS selector handling
 
