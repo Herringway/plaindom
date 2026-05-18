@@ -8,3 +8,4 @@ docs.json
 *.dll
 .dub
 dub.selections.json
+*.lst
