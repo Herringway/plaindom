@@ -5535,7 +5535,7 @@ struct DomMutationEvent {
 }
 
 
-private immutable static string[] htmlSelfClosedElements = [
+private immutable string[] htmlSelfClosedElements = [
 	// html 4
 	"area","base","br","col","hr","img","input","link","meta","param",
 
@@ -5543,11 +5543,11 @@ private immutable static string[] htmlSelfClosedElements = [
 	"embed","source","track","wbr"
 ];
 
-private immutable static string[] htmlRawSourceElements = [
+private immutable string[] htmlRawSourceElements = [
 	"script", "style"
 ];
 
-private immutable static string[] htmlInlineElements = [
+private immutable string[] htmlInlineElements = [
 	"span", "strong", "em", "b", "i", "a"
 ];
 
@@ -5565,15 +5565,15 @@ private immutable static string[] htmlInlineElements = [
 // CSS4 draft currently says you can change the subject (the element actually returned) by putting a ! at the end of it.
 // That might be useful to implement, though I do have parent selectors too.
 
-		///.
-		static immutable string[] selectorTokens = [
-			// It is important that the 2 character possibilities go first here for accurate lexing
-		    "~=", "*=", "|=", "^=", "$=", "!=",
-		    "::", ">>",
-		    "<<", // my any-parent extension (reciprocal of whitespace)
-		    // " - ", // previous-sibling extension (whitespace required to disambiguate tag-names)
-		    ".", ">", "+", "*", ":", "[", "]", "=", "\"", "#", ",", " ", "~", "<", "(", ")"
-		]; // other is white space or a name.
+///.
+private immutable string[] selectorTokens = [
+	// It is important that the 2 character possibilities go first here for accurate lexing
+    "~=", "*=", "|=", "^=", "$=", "!=",
+    "::", ">>",
+    "<<", // my any-parent extension (reciprocal of whitespace)
+    // " - ", // previous-sibling extension (whitespace required to disambiguate tag-names)
+    ".", ">", "+", "*", ":", "[", "]", "=", "\"", "#", ",", " ", "~", "<", "(", ")"
+]; // other is white space or a name.
 
 		///.
 		sizediff_t idToken(string str, sizediff_t position) @safe pure {
