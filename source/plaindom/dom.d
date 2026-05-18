@@ -5575,1161 +5575,1161 @@ private immutable string[] selectorTokens = [
     ".", ">", "+", "*", ":", "[", "]", "=", "\"", "#", ",", " ", "~", "<", "(", ")"
 ]; // other is white space or a name.
 
-		///.
-		sizediff_t idToken(string str, sizediff_t position) @safe pure {
-			sizediff_t tid = -1;
-			char c = str[position];
-			foreach(a, token; selectorTokens)
+///.
+sizediff_t idToken(string str, sizediff_t position) @safe pure {
+	sizediff_t tid = -1;
+	char c = str[position];
+	foreach(a, token; selectorTokens)
 
-				if(c == token[0]) {
-					if(token.length > 1) {
-						if(position + 1 >= str.length   ||   str[position+1] != token[1])
-							continue; // not this token
-					}
-					tid = a;
-					break;
-				}
-			return tid;
+		if(c == token[0]) {
+			if(token.length > 1) {
+				if(position + 1 >= str.length   ||   str[position+1] != token[1])
+					continue; // not this token
+			}
+			tid = a;
+			break;
 		}
+	return tid;
+}
 
-	/// Parts of the CSS selector implementation
-	// look, ma, no phobos!
-	// new lexer by ketmar
-	string[] lexSelector (string selstr) @safe pure {
+/// Parts of the CSS selector implementation
+// look, ma, no phobos!
+// new lexer by ketmar
+string[] lexSelector (string selstr) @safe pure {
 
-		static sizediff_t idToken (string str, size_t stpos) {
-			char c = str[stpos];
-			foreach (sizediff_t tidx, immutable token; selectorTokens) {
-				if (c == token[0]) {
-					if (token.length > 1) {
-						assert(token.length == 2, token); // we don't have 3-char tokens yet
-						if (str.length-stpos < 2 || str[stpos+1] != token[1]) continue;
-					}
-					return tidx;
+	static sizediff_t idToken (string str, size_t stpos) {
+		char c = str[stpos];
+		foreach (sizediff_t tidx, immutable token; selectorTokens) {
+			if (c == token[0]) {
+				if (token.length > 1) {
+					assert(token.length == 2, token); // we don't have 3-char tokens yet
+					if (str.length-stpos < 2 || str[stpos+1] != token[1]) continue;
 				}
+				return tidx;
 			}
-			return -1;
 		}
-
-		// skip spaces and comments
-		static string removeLeadingBlanks (string str) {
-			size_t curpos = 0;
-			while (curpos < str.length) {
-				immutable char ch = str[curpos];
-				// this can overflow on 4GB strings on 32-bit; 'cmon, don't be silly, nobody cares!
-				if (ch == '/' && str.length-curpos > 1 && str[curpos+1] == '*') {
-					// comment
-					curpos += 2;
-					while (curpos < str.length) {
-						if (str[curpos] == '*' && str.length-curpos > 1 && str[curpos+1] == '/') {
-							curpos += 2;
-							break;
-						}
-						++curpos;
-					}
-				} else if (ch < 32) { // The < instead of <= is INTENTIONAL. See note from adr below.
-					++curpos;
-
-					// FROM ADR: This does NOT catch ' '! Spaces have semantic meaning in CSS! While
-					// "foo bar" is clear, and can only have one meaning, consider ".foo .bar".
-					// That is not the same as ".foo.bar". If the space is stripped, important
-					// information is lost, despite the tokens being separatable anyway.
-					//
-					// The parser really needs to be aware of the presence of a space.
-				} else {
-					break;
-				}
-			}
-			return str[curpos..$];
-		}
-
-		static bool isBlankAt() (string str, size_t pos) {
-			// we should consider unicode spaces too, but... unicode sux anyway.
-			return
-				(pos < str.length && // in string
-				 (str[pos] <= 32 || // space
-					(str.length-pos > 1 && str[pos] == '/' && str[pos+1] == '*'))); // comment
-		}
-
-		string[] tokens;
-		// lexx it!
-		while ((selstr = removeLeadingBlanks(selstr)).length > 0) {
-			if(selstr[0] == '\"' || selstr[0] == '\'') {
-				auto end = selstr[0];
-				auto pos = 1;
-				bool escaping;
-				while(pos < selstr.length && !escaping && selstr[pos] != end) {
-					if(escaping)
-						escaping = false;
-					else if(selstr[pos] == '\\')
-						escaping = true;
-					pos++;
-				}
-
-				// FIXME: do better unescaping
-				tokens ~= selstr[1 .. pos].replace(`\"`, `"`).replace(`\'`, `'`).replace(`\\`, `\`);
-				if(pos+1 >= selstr.length)
-					assert(0, selstr);
-				selstr = selstr[pos + 1.. $];
-				continue;
-			}
-
-
-			// no tokens starts with escape
-			immutable tid = idToken(selstr, 0);
-			if (tid >= 0) {
-				// special token
-				tokens ~= selectorTokens[tid]; // it's funnier this way
-				selstr = selstr[selectorTokens[tid].length..$];
-				continue;
-			}
-			// from start to space or special token
-			size_t escapePos = size_t.max;
-			size_t curpos = 0; // i can has chizburger^w escape at the start
-			while (curpos < selstr.length) {
-				if (selstr[curpos] == '\\') {
-					// this is escape, just skip it and next char
-					if (escapePos == size_t.max) escapePos = curpos;
-					curpos = (selstr.length-curpos >= 2 ? curpos+2 : selstr.length);
-				} else {
-					if (isBlankAt(selstr, curpos) || idToken(selstr, curpos) >= 0) break;
-					++curpos;
-				}
-			}
-			// identifier
-			if (escapePos != size_t.max) {
-				// i hate it when it happens
-				string id = selstr[0..escapePos];
-				while (escapePos < curpos) {
-					if (curpos-escapePos < 2) break;
-					id ~= selstr[escapePos+1]; // escaped char
-					escapePos += 2;
-					immutable stp = escapePos;
-					while (escapePos < curpos && selstr[escapePos] != '\\') ++escapePos;
-					if (escapePos > stp) id ~= selstr[stp..escapePos];
-				}
-				if (id.length > 0) tokens ~= id;
-			} else {
-				tokens ~= selstr[0..curpos];
-			}
-			selstr = selstr[curpos..$];
-		}
-		return tokens;
-	}
-	version(unittest_domd_lexer) @safe pure unittest {
-		assert(lexSelector(r" test\=me  /*d*/") == [r"test=me"]);
-		assert(lexSelector(r"div/**/. id") == ["div", ".", "id"]);
-		assert(lexSelector(r" < <") == ["<", "<"]);
-		assert(lexSelector(r" <<") == ["<<"]);
-		assert(lexSelector(r" <</") == ["<<", "/"]);
-		assert(lexSelector(r" <</*") == ["<<"]);
-		assert(lexSelector(r" <\</*") == ["<", "<"]);
-		assert(lexSelector(r"heh\") == ["heh"]);
-		assert(lexSelector(r"alice \") == ["alice"]);
-		assert(lexSelector(r"alice,is#best") == ["alice", ",", "is", "#", "best"]);
+		return -1;
 	}
 
-	/// ditto
-	static struct SelectorPart {
-		string tagNameFilter; ///.
-		string[] attributesPresent; /// [attr]
-		string[2][] attributesEqual; /// [attr=value]
-		string[2][] attributesStartsWith; /// [attr^=value]
-		string[2][] attributesEndsWith; /// [attr$=value]
-		// split it on space, then match to these
-		string[2][] attributesIncludesSeparatedBySpaces; /// [attr~=value]
-		// split it on dash, then match to these
-		string[2][] attributesIncludesSeparatedByDashes; /// [attr|=value]
-		string[2][] attributesInclude; /// [attr*=value]
-		string[2][] attributesNotEqual; /// [attr!=value] -- extension by me
-
-		string[] hasSelectors; /// :has(this)
-		string[] notSelectors; /// :not(this)
-
-		string[] isSelectors; /// :is(this)
-		string[] whereSelectors; /// :where(this)
-
-		ParsedNth[] nthOfType; /// .
-		ParsedNth[] nthLastOfType; /// .
-		ParsedNth[] nthChild; /// .
-
-		bool firstChild; ///.
-		bool lastChild; ///.
-
-		bool firstOfType; /// .
-		bool lastOfType; /// .
-
-		bool emptyElement; ///.
-		bool whitespaceOnly; ///
-		bool oddChild; ///.
-		bool evenChild; ///.
-
-		bool scopeElement; /// the css :scope thing; matches just the `this` element. NOT IMPLEMENTED
-
-		bool rootElement; ///.
-
-		int separation = -1; /// -1 == only itself; the null selector, 0 == tree, 1 == childNodes, 2 == childAfter, 3 == youngerSibling, 4 == parentOf
-
-		bool isCleanSlateExceptSeparation() @safe pure {
-			auto cp = this;
-			cp.separation = -1;
-			return cp is SelectorPart.init;
-		}
-
-		///.
-		string toString() @safe pure {
-			string ret;
-			switch(separation) {
-				default: assert(0);
-				case -1: break;
-				case 0: ret ~= " "; break;
-				case 1: ret ~= " > "; break;
-				case 2: ret ~= " + "; break;
-				case 3: ret ~= " ~ "; break;
-				case 4: ret ~= " < "; break;
-			}
-			ret ~= tagNameFilter;
-			foreach(a; attributesPresent) ret ~= "[" ~ a ~ "]";
-			foreach(a; attributesEqual) ret ~= "[" ~ a[0] ~ "=\"" ~ a[1] ~ "\"]";
-			foreach(a; attributesEndsWith) ret ~= "[" ~ a[0] ~ "$=\"" ~ a[1] ~ "\"]";
-			foreach(a; attributesStartsWith) ret ~= "[" ~ a[0] ~ "^=\"" ~ a[1] ~ "\"]";
-			foreach(a; attributesNotEqual) ret ~= "[" ~ a[0] ~ "!=\"" ~ a[1] ~ "\"]";
-			foreach(a; attributesInclude) ret ~= "[" ~ a[0] ~ "*=\"" ~ a[1] ~ "\"]";
-			foreach(a; attributesIncludesSeparatedByDashes) ret ~= "[" ~ a[0] ~ "|=\"" ~ a[1] ~ "\"]";
-			foreach(a; attributesIncludesSeparatedBySpaces) ret ~= "[" ~ a[0] ~ "~=\"" ~ a[1] ~ "\"]";
-
-			foreach(a; notSelectors) ret ~= ":not(" ~ a ~ ")";
-			foreach(a; hasSelectors) ret ~= ":has(" ~ a ~ ")";
-
-			foreach(a; isSelectors) ret ~= ":is(" ~ a ~ ")";
-			foreach(a; whereSelectors) ret ~= ":where(" ~ a ~ ")";
-
-			foreach(a; nthChild) ret ~= ":nth-child(" ~ a.toString ~ ")";
-			foreach(a; nthOfType) ret ~= ":nth-of-type(" ~ a.toString ~ ")";
-			foreach(a; nthLastOfType) ret ~= ":nth-last-of-type(" ~ a.toString ~ ")";
-
-			if(firstChild) ret ~= ":first-child";
-			if(lastChild) ret ~= ":last-child";
-			if(firstOfType) ret ~= ":first-of-type";
-			if(lastOfType) ret ~= ":last-of-type";
-			if(emptyElement) ret ~= ":empty";
-			if(whitespaceOnly) ret ~= ":whitespace-only";
-			if(oddChild) ret ~= ":odd-child";
-			if(evenChild) ret ~= ":even-child";
-			if(rootElement) ret ~= ":root";
-			if(scopeElement) ret ~= ":scope";
-
-			return ret;
-		}
-
-		// USEFUL
-		/// Returns true if the given element matches this part
-		bool matchElement(Element e, Element scopeElementNow = null) @safe pure {
-			// FIXME: this can be called a lot of times, and really add up in times according to the profiler.
-			// Each individual call is reasonably fast already, but it adds up.
-			if(e is null) return false;
-			if(e.nodeType != 1) return false;
-
-			if(tagNameFilter != "" && tagNameFilter != "*")
-				if(e.tagName != tagNameFilter)
-					return false;
-			if(firstChild) {
-				if(e.parentNode is null)
-					return false;
-				if(e.parentNode.childElements[0] !is e)
-					return false;
-			}
-			if(lastChild) {
-				if(e.parentNode is null)
-					return false;
-				auto ce = e.parentNode.childElements;
-				if(ce[$-1] !is e)
-					return false;
-			}
-			if(firstOfType) {
-				if(e.parentNode is null)
-					return false;
-				auto ce = e.parentNode.childElements;
-				foreach(c; ce) {
-					if(c.tagName == e.tagName) {
-						if(c is e)
-							return true;
-						else
-							return false;
-					}
-				}
-			}
-			if(lastOfType) {
-				if(e.parentNode is null)
-					return false;
-				auto ce = e.parentNode.childElements;
-				foreach_reverse(c; ce) {
-					if(c.tagName == e.tagName) {
-						if(c is e)
-							return true;
-						else
-							return false;
-					}
-				}
-			}
-			if(scopeElement) {
-				if(e !is scopeElementNow)
-					return false;
-			}
-			if(emptyElement) {
-				if(e.isEmpty())
-					return false;
-			}
-			if(whitespaceOnly) {
-				if(e.innerText.strip.length)
-					return false;
-			}
-			if(rootElement) {
-				if(e.parentNode !is null)
-					return false;
-			}
-			if(oddChild || evenChild) {
-				if(e.parentNode is null)
-					return false;
-				foreach(i, child; e.parentNode.childElements) {
-					if(child is e) {
-						if(oddChild && !(i&1))
-							return false;
-						if(evenChild && (i&1))
-							return false;
+	// skip spaces and comments
+	static string removeLeadingBlanks (string str) {
+		size_t curpos = 0;
+		while (curpos < str.length) {
+			immutable char ch = str[curpos];
+			// this can overflow on 4GB strings on 32-bit; 'cmon, don't be silly, nobody cares!
+			if (ch == '/' && str.length-curpos > 1 && str[curpos+1] == '*') {
+				// comment
+				curpos += 2;
+				while (curpos < str.length) {
+					if (str[curpos] == '*' && str.length-curpos > 1 && str[curpos+1] == '/') {
+						curpos += 2;
 						break;
 					}
+					++curpos;
 				}
-			}
+			} else if (ch < 32) { // The < instead of <= is INTENTIONAL. See note from adr below.
+				++curpos;
 
-			foreach(a; attributesPresent)
-				if(a !in e.attributes)
-					return false;
-			foreach(a; attributesEqual)
-				if(e.getAttribute(a[0]) != a[1])
-					return false;
-			foreach(a; attributesNotEqual)
-				// FIXME: maybe it should say null counts... this just bit me.
-				// I did [attr][attr!=value] to work around.
+				// FROM ADR: This does NOT catch ' '! Spaces have semantic meaning in CSS! While
+				// "foo bar" is clear, and can only have one meaning, consider ".foo .bar".
+				// That is not the same as ".foo.bar". If the space is stripped, important
+				// information is lost, despite the tokens being separatable anyway.
 				//
-				// if it's null, it's not equal, right?
-				//if(a[0] !in e.attributes || e.attributes[a[0]] == a[1])
-				if(e.getAttribute(a[0]) == a[1])
-					return false;
-			foreach(a; attributesInclude)
-				if(e.getAttribute(a[0]).indexOf(a[1]) == -1)
-					return false;
-			foreach(a; attributesStartsWith)
-				if(!e.getAttribute(a[0]).startsWith(a[1]))
-					return false;
-			foreach(a; attributesEndsWith)
-				if(!e.getAttribute(a[0]).endsWith(a[1]))
-					return false;
-			foreach(a; attributesIncludesSeparatedBySpaces)
-				if(!e.getAttribute(a[0]).splitter!isWhite.canFind(a[1]))
-					return false;
-			foreach(a; attributesIncludesSeparatedByDashes)
-				if(!e.getAttribute(a[0]).splitter("-").canFind(a[1]))
-					return false;
-			foreach(a; hasSelectors) {
-				if(e.querySelector(a) is null)
-					return false;
+				// The parser really needs to be aware of the presence of a space.
+			} else {
+				break;
 			}
-			foreach(a; notSelectors) {
-				auto sel = Selector(a);
-				if(sel.matchesElement(e))
-					return false;
-			}
-			foreach(a; isSelectors) {
-				auto sel = Selector(a);
-				if(!sel.matchesElement(e))
-					return false;
-			}
-			foreach(a; whereSelectors) {
-				auto sel = Selector(a);
-				if(!sel.matchesElement(e))
-					return false;
-			}
-
-			foreach(a; nthChild) {
-				if(e.parentNode is null)
-					return false;
-
-				auto among = e.parentNode.childElements;
-
-				if(!a.solvesFor(among, e))
-					return false;
-			}
-			foreach(a; nthOfType) {
-				if(e.parentNode is null)
-					return false;
-
-				auto among = e.parentNode.childElements(e.tagName);
-
-				if(!a.solvesFor(among, e))
-					return false;
-			}
-			foreach(a; nthLastOfType) {
-				if(e.parentNode is null)
-					return false;
-
-				auto among = retro(e.parentNode.childElements(e.tagName));
-
-				if(!a.solvesFor(among, e))
-					return false;
-			}
-
-			return true;
 		}
+		return str[curpos..$];
 	}
 
-	static struct ParsedNth {
-		int multiplier;
-		int adder;
+	static bool isBlankAt() (string str, size_t pos) {
+		// we should consider unicode spaces too, but... unicode sux anyway.
+		return
+			(pos < str.length && // in string
+			 (str[pos] <= 32 || // space
+				(str.length-pos > 1 && str[pos] == '/' && str[pos+1] == '*'))); // comment
+	}
 
-		string of;
+	string[] tokens;
+	// lexx it!
+	while ((selstr = removeLeadingBlanks(selstr)).length > 0) {
+		if(selstr[0] == '\"' || selstr[0] == '\'') {
+			auto end = selstr[0];
+			auto pos = 1;
+			bool escaping;
+			while(pos < selstr.length && !escaping && selstr[pos] != end) {
+				if(escaping)
+					escaping = false;
+				else if(selstr[pos] == '\\')
+					escaping = true;
+				pos++;
+			}
 
-		this(string text) @safe pure {
-			auto original = text;
-			consumeWhitespace(text);
-			if(text.startsWith("odd")) {
-				multiplier = 2;
-				adder = 1;
+			// FIXME: do better unescaping
+			tokens ~= selstr[1 .. pos].replace(`\"`, `"`).replace(`\'`, `'`).replace(`\\`, `\`);
+			if(pos+1 >= selstr.length)
+				assert(0, selstr);
+			selstr = selstr[pos + 1.. $];
+			continue;
+		}
 
-				text = text[3 .. $];
-			} else if(text.startsWith("even")) {
-				multiplier = 2;
-				adder = 1;
 
-				text = text[4 .. $];
+		// no tokens starts with escape
+		immutable tid = idToken(selstr, 0);
+		if (tid >= 0) {
+			// special token
+			tokens ~= selectorTokens[tid]; // it's funnier this way
+			selstr = selstr[selectorTokens[tid].length..$];
+			continue;
+		}
+		// from start to space or special token
+		size_t escapePos = size_t.max;
+		size_t curpos = 0; // i can has chizburger^w escape at the start
+		while (curpos < selstr.length) {
+			if (selstr[curpos] == '\\') {
+				// this is escape, just skip it and next char
+				if (escapePos == size_t.max) escapePos = curpos;
+				curpos = (selstr.length-curpos >= 2 ? curpos+2 : selstr.length);
 			} else {
-				int n = (text.length && text[0] == 'n') ? 1 : parseNumber(text);
-				consumeWhitespace(text);
-				if(text.length && text[0] == 'n') {
-					multiplier = n;
-					text = text[1 .. $];
-					consumeWhitespace(text);
-					if(text.length) {
-						if(text[0] == '+') {
-							text = text[1 .. $];
-							adder = parseNumber(text);
-						} else if(text[0] == '-') {
-							text = text[1 .. $];
-							adder = -parseNumber(text);
-						} else if(text[0] == 'o') {
-							// continue, this is handled below
-						} else
-							throw new Exception("invalid css string at " ~ text ~ " in " ~ original);
-					}
-				} else {
-					adder = n;
-				}
-			}
-
-			consumeWhitespace(text);
-			if(text.startsWith("of")) {
-				text = text[2 .. $];
-				consumeWhitespace(text);
-				of = text[0 .. $];
+				if (isBlankAt(selstr, curpos) || idToken(selstr, curpos) >= 0) break;
+				++curpos;
 			}
 		}
-
-		string toString() @safe pure {
-			return format("%dn%s%d%s%s", multiplier, adder >= 0 ? "+" : "", adder, of.length ? " of " : "", of);
-		}
-
-		bool solvesFor(R)(R elements, Element e) {
-			int idx = 1;
-			bool found = false;
-			foreach(ele; elements) {
-				if(of.length) {
-					auto sel = Selector(of);
-					if(!sel.matchesElement(ele))
-						continue;
-				}
-				if(ele is e) {
-					found = true;
-					break;
-				}
-				idx++;
+		// identifier
+		if (escapePos != size_t.max) {
+			// i hate it when it happens
+			string id = selstr[0..escapePos];
+			while (escapePos < curpos) {
+				if (curpos-escapePos < 2) break;
+				id ~= selstr[escapePos+1]; // escaped char
+				escapePos += 2;
+				immutable stp = escapePos;
+				while (escapePos < curpos && selstr[escapePos] != '\\') ++escapePos;
+				if (escapePos > stp) id ~= selstr[stp..escapePos];
 			}
-			if(!found) return false;
-
-			// multiplier* n + adder = idx
-			// if there is a solution for integral n, it matches
-
-			idx -= adder;
-			if(multiplier) {
-				if(idx % multiplier == 0)
-					return true;
-			} else {
-				return idx == 0;
-			}
-			return false;
+			if (id.length > 0) tokens ~= id;
+		} else {
+			tokens ~= selstr[0..curpos];
 		}
+		selstr = selstr[curpos..$];
+	}
+	return tokens;
+}
+version(unittest_domd_lexer) @safe pure unittest {
+	assert(lexSelector(r" test\=me  /*d*/") == [r"test=me"]);
+	assert(lexSelector(r"div/**/. id") == ["div", ".", "id"]);
+	assert(lexSelector(r" < <") == ["<", "<"]);
+	assert(lexSelector(r" <<") == ["<<"]);
+	assert(lexSelector(r" <</") == ["<<", "/"]);
+	assert(lexSelector(r" <</*") == ["<<"]);
+	assert(lexSelector(r" <\</*") == ["<", "<"]);
+	assert(lexSelector(r"heh\") == ["heh"]);
+	assert(lexSelector(r"alice \") == ["alice"]);
+	assert(lexSelector(r"alice,is#best") == ["alice", ",", "is", "#", "best"]);
+}
 
-		private void consumeWhitespace(ref string text) @safe pure {
-			while(text.length && text[0] == ' ')
-				text = text[1 .. $];
-		}
+/// ditto
+static struct SelectorPart {
+	string tagNameFilter; ///.
+	string[] attributesPresent; /// [attr]
+	string[2][] attributesEqual; /// [attr=value]
+	string[2][] attributesStartsWith; /// [attr^=value]
+	string[2][] attributesEndsWith; /// [attr$=value]
+	// split it on space, then match to these
+	string[2][] attributesIncludesSeparatedBySpaces; /// [attr~=value]
+	// split it on dash, then match to these
+	string[2][] attributesIncludesSeparatedByDashes; /// [attr|=value]
+	string[2][] attributesInclude; /// [attr*=value]
+	string[2][] attributesNotEqual; /// [attr!=value] -- extension by me
 
-		private int parseNumber(ref string text) @safe pure {
-			consumeWhitespace(text);
-			if(text.length == 0) return 0;
-			bool negative = text[0] == '-';
-			if(text[0] == '+')
-				text = text[1 .. $];
-			if(negative) text = text[1 .. $];
-			int i = 0;
-			while(i < text.length && (text[i] >= '0' && text[i] <= '9'))
-				i++;
-			if(i == 0)
-				return 0;
-			int cool = to!int(text[0 .. i]);
-			text = text[i .. $];
-			return negative ? -cool : cool;
+	string[] hasSelectors; /// :has(this)
+	string[] notSelectors; /// :not(this)
+
+	string[] isSelectors; /// :is(this)
+	string[] whereSelectors; /// :where(this)
+
+	ParsedNth[] nthOfType; /// .
+	ParsedNth[] nthLastOfType; /// .
+	ParsedNth[] nthChild; /// .
+
+	bool firstChild; ///.
+	bool lastChild; ///.
+
+	bool firstOfType; /// .
+	bool lastOfType; /// .
+
+	bool emptyElement; ///.
+	bool whitespaceOnly; ///
+	bool oddChild; ///.
+	bool evenChild; ///.
+
+	bool scopeElement; /// the css :scope thing; matches just the `this` element. NOT IMPLEMENTED
+
+	bool rootElement; ///.
+
+	int separation = -1; /// -1 == only itself; the null selector, 0 == tree, 1 == childNodes, 2 == childAfter, 3 == youngerSibling, 4 == parentOf
+
+	bool isCleanSlateExceptSeparation() @safe pure {
+		auto cp = this;
+		cp.separation = -1;
+		return cp is SelectorPart.init;
+	}
+
+	///.
+	string toString() @safe pure {
+		string ret;
+		switch(separation) {
+			default: assert(0);
+			case -1: break;
+			case 0: ret ~= " "; break;
+			case 1: ret ~= " > "; break;
+			case 2: ret ~= " + "; break;
+			case 3: ret ~= " ~ "; break;
+			case 4: ret ~= " < "; break;
 		}
+		ret ~= tagNameFilter;
+		foreach(a; attributesPresent) ret ~= "[" ~ a ~ "]";
+		foreach(a; attributesEqual) ret ~= "[" ~ a[0] ~ "=\"" ~ a[1] ~ "\"]";
+		foreach(a; attributesEndsWith) ret ~= "[" ~ a[0] ~ "$=\"" ~ a[1] ~ "\"]";
+		foreach(a; attributesStartsWith) ret ~= "[" ~ a[0] ~ "^=\"" ~ a[1] ~ "\"]";
+		foreach(a; attributesNotEqual) ret ~= "[" ~ a[0] ~ "!=\"" ~ a[1] ~ "\"]";
+		foreach(a; attributesInclude) ret ~= "[" ~ a[0] ~ "*=\"" ~ a[1] ~ "\"]";
+		foreach(a; attributesIncludesSeparatedByDashes) ret ~= "[" ~ a[0] ~ "|=\"" ~ a[1] ~ "\"]";
+		foreach(a; attributesIncludesSeparatedBySpaces) ret ~= "[" ~ a[0] ~ "~=\"" ~ a[1] ~ "\"]";
+
+		foreach(a; notSelectors) ret ~= ":not(" ~ a ~ ")";
+		foreach(a; hasSelectors) ret ~= ":has(" ~ a ~ ")";
+
+		foreach(a; isSelectors) ret ~= ":is(" ~ a ~ ")";
+		foreach(a; whereSelectors) ret ~= ":where(" ~ a ~ ")";
+
+		foreach(a; nthChild) ret ~= ":nth-child(" ~ a.toString ~ ")";
+		foreach(a; nthOfType) ret ~= ":nth-of-type(" ~ a.toString ~ ")";
+		foreach(a; nthLastOfType) ret ~= ":nth-last-of-type(" ~ a.toString ~ ")";
+
+		if(firstChild) ret ~= ":first-child";
+		if(lastChild) ret ~= ":last-child";
+		if(firstOfType) ret ~= ":first-of-type";
+		if(lastOfType) ret ~= ":last-of-type";
+		if(emptyElement) ret ~= ":empty";
+		if(whitespaceOnly) ret ~= ":whitespace-only";
+		if(oddChild) ret ~= ":odd-child";
+		if(evenChild) ret ~= ":even-child";
+		if(rootElement) ret ~= ":root";
+		if(scopeElement) ret ~= ":scope";
+
+		return ret;
 	}
 
 	// USEFUL
-	/// ditto
-	Element[] getElementsBySelectorParts(Element start, SelectorPart[] parts, Element scopeElementNow = null) @safe pure {
-		Element[] ret;
-		if(!parts.length) {
-			return [start]; // the null selector only matches the start point; it
-				// is what terminates the recursion
+	/// Returns true if the given element matches this part
+	bool matchElement(Element e, Element scopeElementNow = null) @safe pure {
+		// FIXME: this can be called a lot of times, and really add up in times according to the profiler.
+		// Each individual call is reasonably fast already, but it adds up.
+		if(e is null) return false;
+		if(e.nodeType != 1) return false;
+
+		if(tagNameFilter != "" && tagNameFilter != "*")
+			if(e.tagName != tagNameFilter)
+				return false;
+		if(firstChild) {
+			if(e.parentNode is null)
+				return false;
+			if(e.parentNode.childElements[0] !is e)
+				return false;
+		}
+		if(lastChild) {
+			if(e.parentNode is null)
+				return false;
+			auto ce = e.parentNode.childElements;
+			if(ce[$-1] !is e)
+				return false;
+		}
+		if(firstOfType) {
+			if(e.parentNode is null)
+				return false;
+			auto ce = e.parentNode.childElements;
+			foreach(c; ce) {
+				if(c.tagName == e.tagName) {
+					if(c is e)
+						return true;
+					else
+						return false;
+				}
+			}
+		}
+		if(lastOfType) {
+			if(e.parentNode is null)
+				return false;
+			auto ce = e.parentNode.childElements;
+			foreach_reverse(c; ce) {
+				if(c.tagName == e.tagName) {
+					if(c is e)
+						return true;
+					else
+						return false;
+				}
+			}
+		}
+		if(scopeElement) {
+			if(e !is scopeElementNow)
+				return false;
+		}
+		if(emptyElement) {
+			if(e.isEmpty())
+				return false;
+		}
+		if(whitespaceOnly) {
+			if(e.innerText.strip.length)
+				return false;
+		}
+		if(rootElement) {
+			if(e.parentNode !is null)
+				return false;
+		}
+		if(oddChild || evenChild) {
+			if(e.parentNode is null)
+				return false;
+			foreach(i, child; e.parentNode.childElements) {
+				if(child is e) {
+					if(oddChild && !(i&1))
+						return false;
+					if(evenChild && (i&1))
+						return false;
+					break;
+				}
+			}
 		}
 
-		auto part = parts[0];
-		//writeln("checking ", part, " against ", start, " with ", part.separation);
-		switch(part.separation) {
-			default: assert(0);
-			case -1:
-			case 0: // tree
-				foreach(e; start.tree) {
-					if(part.separation == 0 && start is e)
-						continue; // space doesn't match itself!
-					if(part.matchElement(e, scopeElementNow)) {
-						ret ~= getElementsBySelectorParts(e, parts[1..$], scopeElementNow);
-					}
+		foreach(a; attributesPresent)
+			if(a !in e.attributes)
+				return false;
+		foreach(a; attributesEqual)
+			if(e.getAttribute(a[0]) != a[1])
+				return false;
+		foreach(a; attributesNotEqual)
+			// FIXME: maybe it should say null counts... this just bit me.
+			// I did [attr][attr!=value] to work around.
+			//
+			// if it's null, it's not equal, right?
+			//if(a[0] !in e.attributes || e.attributes[a[0]] == a[1])
+			if(e.getAttribute(a[0]) == a[1])
+				return false;
+		foreach(a; attributesInclude)
+			if(e.getAttribute(a[0]).indexOf(a[1]) == -1)
+				return false;
+		foreach(a; attributesStartsWith)
+			if(!e.getAttribute(a[0]).startsWith(a[1]))
+				return false;
+		foreach(a; attributesEndsWith)
+			if(!e.getAttribute(a[0]).endsWith(a[1]))
+				return false;
+		foreach(a; attributesIncludesSeparatedBySpaces)
+			if(!e.getAttribute(a[0]).splitter!isWhite.canFind(a[1]))
+				return false;
+		foreach(a; attributesIncludesSeparatedByDashes)
+			if(!e.getAttribute(a[0]).splitter("-").canFind(a[1]))
+				return false;
+		foreach(a; hasSelectors) {
+			if(e.querySelector(a) is null)
+				return false;
+		}
+		foreach(a; notSelectors) {
+			auto sel = Selector(a);
+			if(sel.matchesElement(e))
+				return false;
+		}
+		foreach(a; isSelectors) {
+			auto sel = Selector(a);
+			if(!sel.matchesElement(e))
+				return false;
+		}
+		foreach(a; whereSelectors) {
+			auto sel = Selector(a);
+			if(!sel.matchesElement(e))
+				return false;
+		}
+
+		foreach(a; nthChild) {
+			if(e.parentNode is null)
+				return false;
+
+			auto among = e.parentNode.childElements;
+
+			if(!a.solvesFor(among, e))
+				return false;
+		}
+		foreach(a; nthOfType) {
+			if(e.parentNode is null)
+				return false;
+
+			auto among = e.parentNode.childElements(e.tagName);
+
+			if(!a.solvesFor(among, e))
+				return false;
+		}
+		foreach(a; nthLastOfType) {
+			if(e.parentNode is null)
+				return false;
+
+			auto among = retro(e.parentNode.childElements(e.tagName));
+
+			if(!a.solvesFor(among, e))
+				return false;
+		}
+
+		return true;
+	}
+}
+
+static struct ParsedNth {
+	int multiplier;
+	int adder;
+
+	string of;
+
+	this(string text) @safe pure {
+		auto original = text;
+		consumeWhitespace(text);
+		if(text.startsWith("odd")) {
+			multiplier = 2;
+			adder = 1;
+
+			text = text[3 .. $];
+		} else if(text.startsWith("even")) {
+			multiplier = 2;
+			adder = 1;
+
+			text = text[4 .. $];
+		} else {
+			int n = (text.length && text[0] == 'n') ? 1 : parseNumber(text);
+			consumeWhitespace(text);
+			if(text.length && text[0] == 'n') {
+				multiplier = n;
+				text = text[1 .. $];
+				consumeWhitespace(text);
+				if(text.length) {
+					if(text[0] == '+') {
+						text = text[1 .. $];
+						adder = parseNumber(text);
+					} else if(text[0] == '-') {
+						text = text[1 .. $];
+						adder = -parseNumber(text);
+					} else if(text[0] == 'o') {
+						// continue, this is handled below
+					} else
+						throw new Exception("invalid css string at " ~ text ~ " in " ~ original);
 				}
-			break;
-			case 1: // children
-				foreach(e; start.childNodes) {
-					if(part.matchElement(e, scopeElementNow)) {
-						ret ~= getElementsBySelectorParts(e, parts[1..$], scopeElementNow);
-					}
-				}
-			break;
-			case 2: // next-sibling
-				auto e = start.nextSibling("*");
-				if(part.matchElement(e, scopeElementNow))
-					ret ~= getElementsBySelectorParts(e, parts[1..$], scopeElementNow);
-			break;
-			case 3: // younger sibling
-				auto tmp = start.parentNode;
-				if(tmp !is null) {
-					sizediff_t pos = -1;
-					auto children = tmp.childElements;
-					foreach(i, child; children) {
-						if(child is start) {
-							pos = i;
-							break;
-						}
-					}
-					assert(pos != -1);
-					foreach(e; children[pos+1..$]) {
-						if(part.matchElement(e, scopeElementNow))
-							ret ~= getElementsBySelectorParts(e, parts[1..$], scopeElementNow);
-					}
-				}
-			break;
-			case 4: // immediate parent node, an extension of mine to walk back up the tree
-				auto e = start.parentNode;
+			} else {
+				adder = n;
+			}
+		}
+
+		consumeWhitespace(text);
+		if(text.startsWith("of")) {
+			text = text[2 .. $];
+			consumeWhitespace(text);
+			of = text[0 .. $];
+		}
+	}
+
+	string toString() @safe pure {
+		return format("%dn%s%d%s%s", multiplier, adder >= 0 ? "+" : "", adder, of.length ? " of " : "", of);
+	}
+
+	bool solvesFor(R)(R elements, Element e) {
+		int idx = 1;
+		bool found = false;
+		foreach(ele; elements) {
+			if(of.length) {
+				auto sel = Selector(of);
+				if(!sel.matchesElement(ele))
+					continue;
+			}
+			if(ele is e) {
+				found = true;
+				break;
+			}
+			idx++;
+		}
+		if(!found) return false;
+
+		// multiplier* n + adder = idx
+		// if there is a solution for integral n, it matches
+
+		idx -= adder;
+		if(multiplier) {
+			if(idx % multiplier == 0)
+				return true;
+		} else {
+			return idx == 0;
+		}
+		return false;
+	}
+
+	private void consumeWhitespace(ref string text) @safe pure {
+		while(text.length && text[0] == ' ')
+			text = text[1 .. $];
+	}
+
+	private int parseNumber(ref string text) @safe pure {
+		consumeWhitespace(text);
+		if(text.length == 0) return 0;
+		bool negative = text[0] == '-';
+		if(text[0] == '+')
+			text = text[1 .. $];
+		if(negative) text = text[1 .. $];
+		int i = 0;
+		while(i < text.length && (text[i] >= '0' && text[i] <= '9'))
+			i++;
+		if(i == 0)
+			return 0;
+		int cool = to!int(text[0 .. i]);
+		text = text[i .. $];
+		return negative ? -cool : cool;
+	}
+}
+
+// USEFUL
+/// ditto
+Element[] getElementsBySelectorParts(Element start, SelectorPart[] parts, Element scopeElementNow = null) @safe pure {
+	Element[] ret;
+	if(!parts.length) {
+		return [start]; // the null selector only matches the start point; it
+			// is what terminates the recursion
+	}
+
+	auto part = parts[0];
+	//writeln("checking ", part, " against ", start, " with ", part.separation);
+	switch(part.separation) {
+		default: assert(0);
+		case -1:
+		case 0: // tree
+			foreach(e; start.tree) {
+				if(part.separation == 0 && start is e)
+					continue; // space doesn't match itself!
 				if(part.matchElement(e, scopeElementNow)) {
 					ret ~= getElementsBySelectorParts(e, parts[1..$], scopeElementNow);
 				}
-				/*
-					Example of usefulness:
+			}
+		break;
+		case 1: // children
+			foreach(e; start.childNodes) {
+				if(part.matchElement(e, scopeElementNow)) {
+					ret ~= getElementsBySelectorParts(e, parts[1..$], scopeElementNow);
+				}
+			}
+		break;
+		case 2: // next-sibling
+			auto e = start.nextSibling("*");
+			if(part.matchElement(e, scopeElementNow))
+				ret ~= getElementsBySelectorParts(e, parts[1..$], scopeElementNow);
+		break;
+		case 3: // younger sibling
+			auto tmp = start.parentNode;
+			if(tmp !is null) {
+				sizediff_t pos = -1;
+				auto children = tmp.childElements;
+				foreach(i, child; children) {
+					if(child is start) {
+						pos = i;
+						break;
+					}
+				}
+				assert(pos != -1);
+				foreach(e; children[pos+1..$]) {
+					if(part.matchElement(e, scopeElementNow))
+						ret ~= getElementsBySelectorParts(e, parts[1..$], scopeElementNow);
+				}
+			}
+		break;
+		case 4: // immediate parent node, an extension of mine to walk back up the tree
+			auto e = start.parentNode;
+			if(part.matchElement(e, scopeElementNow)) {
+				ret ~= getElementsBySelectorParts(e, parts[1..$], scopeElementNow);
+			}
+			/*
+				Example of usefulness:
 
-					Consider you have an HTML table. If you want to get all rows that have a th, you can do:
+				Consider you have an HTML table. If you want to get all rows that have a th, you can do:
 
-					table th < tr
+				table th < tr
 
-					Get all th descendants of the table, then walk back up the tree to fetch their parent tr nodes
-				*/
-			break;
-			case 5: // any parent note, another extension of mine to go up the tree (backward of the whitespace operator)
-				/*
-					Like with the < operator, this is best used to find some parent of a particular known element.
+				Get all th descendants of the table, then walk back up the tree to fetch their parent tr nodes
+			*/
+		break;
+		case 5: // any parent note, another extension of mine to go up the tree (backward of the whitespace operator)
+			/*
+				Like with the < operator, this is best used to find some parent of a particular known element.
 
-					Say you have an anchor inside a
-				*/
-		}
+				Say you have an anchor inside a
+			*/
+	}
 
-		return ret;
+	return ret;
+}
+
+/++
+	Represents a parsed CSS selector. You never have to use this directly, but you can if you know it is going to be reused a lot to avoid a bit of repeat parsing.
+
+	See_Also:
+		$(LIST
+			* [Element.querySelector]
+			* [Element.querySelectorAll]
+			* [Element.matches]
+			* [Element.closest]
+			* [Document.querySelector]
+			* [Document.querySelectorAll]
+		)
++/
+/// Group: core_functionality
+static struct Selector {
+	SelectorComponent[] components;
+	string original;
+	/++
+		Parses the selector string and constructs the usable structure.
+	+/
+	this(string cssSelector) @safe pure {
+		components = parseSelectorString(cssSelector);
+		original = cssSelector;
 	}
 
 	/++
-		Represents a parsed CSS selector. You never have to use this directly, but you can if you know it is going to be reused a lot to avoid a bit of repeat parsing.
+		Returns true if the given element matches this selector,
+		considered relative to an arbitrary element.
 
-		See_Also:
-			$(LIST
-				* [Element.querySelector]
-				* [Element.querySelectorAll]
-				* [Element.matches]
-				* [Element.closest]
-				* [Document.querySelector]
-				* [Document.querySelectorAll]
-			)
+		You can do a form of lazy [Element.querySelectorAll|querySelectorAll] by using this
+		with [std.algorithm.iteration.filter]:
+
+		---
+		Selector sel = Selector("foo > bar");
+		auto lazySelectorRange = element.tree.filter!(e => sel.matchElement(e))(document.root);
+		---
 	+/
-	/// Group: core_functionality
-	static struct Selector {
-		SelectorComponent[] components;
-		string original;
-		/++
-			Parses the selector string and constructs the usable structure.
-		+/
-		this(string cssSelector) @safe pure {
-			components = parseSelectorString(cssSelector);
-			original = cssSelector;
-		}
+	bool matchesElement(Element e, Element relativeTo = null) @safe pure {
+		foreach(component; components)
+			if(component.matchElement(e, relativeTo))
+				return true;
 
-		/++
-			Returns true if the given element matches this selector,
-			considered relative to an arbitrary element.
-
-			You can do a form of lazy [Element.querySelectorAll|querySelectorAll] by using this
-			with [std.algorithm.iteration.filter]:
-
-			---
-			Selector sel = Selector("foo > bar");
-			auto lazySelectorRange = element.tree.filter!(e => sel.matchElement(e))(document.root);
-			---
-		+/
-		bool matchesElement(Element e, Element relativeTo = null) @safe pure {
-			foreach(component; components)
-				if(component.matchElement(e, relativeTo))
-					return true;
-
-			return false;
-		}
-
-		/++
-			Reciprocal of [Element.querySelectorAll]
-		+/
-		Element[] getMatchingElements(Element start, Element relativeTo = null) @safe pure {
-			Element[] ret;
-			foreach(component; components)
-				ret ~= getElementsBySelectorParts(start, component.parts, relativeTo);
-			return removeDuplicates(ret);
-		}
-
-		/++
-			Like [getMatchingElements], but returns a lazy range. Be careful
-			about mutating the dom as you iterate through this.
-		+/
-		auto getMatchingElementsLazy(Element start, Element relativeTo = null) @safe pure {
-			return start.tree.filter!(a => this.matchesElement(a, relativeTo));
-		}
-
-
-		/// Returns the string this was built from
-		string toString() @safe pure {
-			return original;
-		}
-
-		/++
-			Returns a string from the parsed result
-
-
-			(may not match the original, this is mostly for debugging right now but in the future might be useful for pretty-printing)
-		+/
-		string parsedToString() @safe pure {
-			string ret;
-
-			foreach(idx, component; components) {
-				if(idx) ret ~= ", ";
-				ret ~= component.toString();
-			}
-
-			return ret;
-		}
+		return false;
 	}
 
-	///.
-	static struct SelectorComponent {
-		///.
-		SelectorPart[] parts;
-
-		///.
-		string toString() @safe pure {
-			string ret;
-			foreach(part; parts)
-				ret ~= part.toString();
-			return ret;
-		}
-
-		// USEFUL
-		///.
-		Element[] getElements(Element start, Element relativeTo = null) @safe pure {
-			return removeDuplicates(getElementsBySelectorParts(start, parts, relativeTo));
-		}
-
-		// USEFUL (but not implemented)
-		/// If relativeTo == null, it assumes the root of the parent document.
-		bool matchElement(Element e, Element relativeTo = null) @safe pure {
-			if(e is null) return false;
-			Element where = e;
-			int lastSeparation = -1;
-
-			auto lparts = parts;
-
-			if(parts.length && parts[0].separation > 0) {
-				throw new Exception("invalid selector");
-			/+
-				// if it starts with a non-trivial separator, inject
-				// a "*" matcher to act as a root. for cases like document.querySelector("> body")
-				// which implies html
-
-				// however, if it is a child-matching selector and there are no children,
-				// bail out early as it obviously cannot match.
-				bool hasNonTextChildren = false;
-				foreach(c; e.children)
-					if(c.nodeType != 3) {
-						hasNonTextChildren = true;
-						break;
-					}
-				if(!hasNonTextChildren)
-					return false;
-
-				// there is probably a MUCH better way to do this.
-				auto dummy = SelectorPart.init;
-				dummy.tagNameFilter = "*";
-				dummy.separation = 0;
-				lparts = dummy ~ lparts;
-			+/
-			}
-
-			foreach(part; retro(lparts)) {
-
-				 // writeln("matching ", where, " with ", part, " via ", lastSeparation);
-				 // writeln(parts);
-
-				if(lastSeparation == -1) {
-					if(!part.matchElement(where, relativeTo))
-						return false;
-				} else if(lastSeparation == 0) { // generic parent
-					// need to go up the whole chain
-					where = where.parentNode;
-
-					while(where !is null) {
-						if(part.matchElement(where, relativeTo))
-							break;
-
-						if(where is relativeTo)
-							return false;
-
-						where = where.parentNode;
-					}
-
-					if(where is null)
-						return false;
-				} else if(lastSeparation == 1) { // the > operator
-					where = where.parentNode;
-
-					if(!part.matchElement(where, relativeTo))
-						return false;
-				} else if(lastSeparation == 2) { // the + operator
-				//writeln("WHERE", where, " ", part);
-					where = where.previousSibling("*");
-
-					if(!part.matchElement(where, relativeTo))
-						return false;
-				} else if(lastSeparation == 3) { // the ~ operator
-					where = where.previousSibling("*");
-					while(where !is null) {
-						if(part.matchElement(where, relativeTo))
-							break;
-
-						if(where is relativeTo)
-							return false;
-
-						where = where.previousSibling("*");
-					}
-
-					if(where is null)
-						return false;
-				} else if(lastSeparation == 4) { // my bad idea extension < operator, don't use this anymore
-					// FIXME
-				}
-
-				lastSeparation = part.separation;
-
-				/*
-					/+
-					I commented this to magically make unittest pass and I think the reason it works
-					when commented is that I inject a :scope iff there's a selector at top level now
-					and if not, it follows the (frankly stupid) w3c standard behavior at arbitrary id
-					asduiwh . but me injecting the :scope also acts as a terminating condition.
-
-					tbh this prolly needs like a trillion more tests.
-					+/
-				if(where is relativeTo)
-					return false; // at end of line, if we aren't done by now, the match fails
-				*/
-			}
-			return true; // if we got here, it is a success
-		}
-
-		// the string should NOT have commas. Use parseSelectorString for that instead
-		///.
-		static SelectorComponent fromString(string selector) @safe pure {
-			return parseSelector(lexSelector(selector));
-		}
+	/++
+		Reciprocal of [Element.querySelectorAll]
+	+/
+	Element[] getMatchingElements(Element start, Element relativeTo = null) @safe pure {
+		Element[] ret;
+		foreach(component; components)
+			ret ~= getElementsBySelectorParts(start, component.parts, relativeTo);
+		return removeDuplicates(ret);
 	}
 
-	///.
-	SelectorComponent[] parseSelectorString(string selector, bool caseSensitiveTags = true) @safe pure {
-		SelectorComponent[] ret;
-		auto tokens = lexSelector(selector); // this will parse commas too
-		// and now do comma-separated slices (i haz phobosophobia!)
-		int parensCount = 0;
-		while (tokens.length > 0) {
-			size_t end = 0;
-			while (end < tokens.length && (parensCount > 0 || tokens[end] != ",")) {
-				if(tokens[end] == "(") parensCount++;
-				if(tokens[end] == ")") parensCount--;
-				++end;
-			}
-			if (end > 0) ret ~= parseSelector(tokens[0..end], caseSensitiveTags);
-			if (tokens.length-end < 2) break;
-			tokens = tokens[end+1..$];
+	/++
+		Like [getMatchingElements], but returns a lazy range. Be careful
+		about mutating the dom as you iterate through this.
+	+/
+	auto getMatchingElementsLazy(Element start, Element relativeTo = null) @safe pure {
+		return start.tree.filter!(a => this.matchesElement(a, relativeTo));
+	}
+
+
+	/// Returns the string this was built from
+	string toString() @safe pure {
+		return original;
+	}
+
+	/++
+		Returns a string from the parsed result
+
+
+		(may not match the original, this is mostly for debugging right now but in the future might be useful for pretty-printing)
+	+/
+	string parsedToString() @safe pure {
+		string ret;
+
+		foreach(idx, component; components) {
+			if(idx) ret ~= ", ";
+			ret ~= component.toString();
 		}
+
+		return ret;
+	}
+}
+
+///.
+static struct SelectorComponent {
+	///.
+	SelectorPart[] parts;
+
+	///.
+	string toString() @safe pure {
+		string ret;
+		foreach(part; parts)
+			ret ~= part.toString();
 		return ret;
 	}
 
+	// USEFUL
 	///.
-	SelectorComponent parseSelector(string[] tokens, bool caseSensitiveTags = true) @safe pure {
-		SelectorComponent s;
+	Element[] getElements(Element start, Element relativeTo = null) @safe pure {
+		return removeDuplicates(getElementsBySelectorParts(start, parts, relativeTo));
+	}
 
-		SelectorPart current;
-		void commit() {
-			// might as well skip null items
-			if(!current.isCleanSlateExceptSeparation()) {
-				s.parts ~= current;
-				current = current.init; // start right over
-			}
-		}
-		enum State {
-			Starting,
-			ReadingClass,
-			ReadingId,
-			ReadingAttributeSelector,
-			ReadingAttributeComparison,
-			ExpectingAttributeCloser,
-			ReadingPseudoClass,
-			ReadingAttributeValue,
+	// USEFUL (but not implemented)
+	/// If relativeTo == null, it assumes the root of the parent document.
+	bool matchElement(Element e, Element relativeTo = null) @safe pure {
+		if(e is null) return false;
+		Element where = e;
+		int lastSeparation = -1;
 
-			SkippingFunctionalSelector,
-		}
-		State state = State.Starting;
-		string attributeName, attributeValue, attributeComparison;
-		int parensCount;
-		foreach(idx, token; tokens) {
-			string readFunctionalSelector() {
-				string s;
-				if(tokens[idx + 1] != "(")
-					throw new Exception("parse error");
-				int pc = 1;
-				foreach(t; tokens[idx + 2 .. $]) {
-					if(t == "(")
-						pc++;
-					if(t == ")")
-						pc--;
-					if(pc == 0)
-						break;
-					s ~= t;
-				}
+		auto lparts = parts;
 
-				return s;
-			}
+		if(parts.length && parts[0].separation > 0) {
+			throw new Exception("invalid selector");
+		/+
+			// if it starts with a non-trivial separator, inject
+			// a "*" matcher to act as a root. for cases like document.querySelector("> body")
+			// which implies html
 
-			sizediff_t tid = -1;
-			foreach(i, item; selectorTokens)
-				if(token == item) {
-					tid = i;
+			// however, if it is a child-matching selector and there are no children,
+			// bail out early as it obviously cannot match.
+			bool hasNonTextChildren = false;
+			foreach(c; e.children)
+				if(c.nodeType != 3) {
+					hasNonTextChildren = true;
 					break;
 				}
-			final switch(state) {
-				case State.Starting: // fresh, might be reading an operator or a tagname
-					if(tid == -1) {
-						if(!caseSensitiveTags)
-							token = token.toLower();
+			if(!hasNonTextChildren)
+				return false;
 
-						if(current.isCleanSlateExceptSeparation()) {
-							current.tagNameFilter = token;
-							// default thing, see comment under "*" below
-							if(current.separation == -1) current.separation = 0;
-						} else {
-							// if it was already set, we must see two thingies
-							// separated by whitespace...
-							commit();
-							current.separation = 0; // tree
-							current.tagNameFilter = token;
-						}
-					} else {
-						// Selector operators
-						switch(token) {
-							case "*":
-								current.tagNameFilter = "*";
-								// the idea here is if we haven't actually set a separation
-								// yet (e.g. the > operator), it should assume the generic
-								// whitespace (descendant) mode to avoid matching self with -1
-								if(current.separation == -1) current.separation = 0;
-							break;
-							case " ":
-								// If some other separation has already been set,
-								// this is irrelevant whitespace, so we should skip it.
-								// this happens in the case of "foo > bar" for example.
-								if(current.isCleanSlateExceptSeparation() && current.separation > 0)
-									continue;
-								commit();
-								current.separation = 0; // tree
-							break;
-							case ">>":
-								commit();
-								current.separation = 0; // alternate syntax for tree from html5 css
-							break;
-							case ">":
-								commit();
-								current.separation = 1; // child
-							break;
-							case "+":
-								commit();
-								current.separation = 2; // sibling directly after
-							break;
-							case "~":
-								commit();
-								current.separation = 3; // any sibling after
-							break;
-							case "<":
-								commit();
-								current.separation = 4; // immediate parent of
-							break;
-							case "[":
-								state = State.ReadingAttributeSelector;
-								if(current.separation == -1) current.separation = 0;
-							break;
-							case ".":
-								state = State.ReadingClass;
-								if(current.separation == -1) current.separation = 0;
-							break;
-							case "#":
-								state = State.ReadingId;
-								if(current.separation == -1) current.separation = 0;
-							break;
-							case ":":
-							case "::":
-								state = State.ReadingPseudoClass;
-								if(current.separation == -1) current.separation = 0;
-							break;
-
-							default:
-								assert(0, token);
-						}
-					}
-				break;
-				case State.ReadingClass:
-					current.attributesIncludesSeparatedBySpaces ~= ["class", token];
-					state = State.Starting;
-				break;
-				case State.ReadingId:
-					current.attributesEqual ~= ["id", token];
-					state = State.Starting;
-				break;
-				case State.ReadingPseudoClass:
-					switch(token) {
-						case "first-of-type":
-							current.firstOfType = true;
-						break;
-						case "last-of-type":
-							current.lastOfType = true;
-						break;
-						case "only-of-type":
-							current.firstOfType = true;
-							current.lastOfType = true;
-						break;
-						case "first-child":
-							current.firstChild = true;
-						break;
-						case "last-child":
-							current.lastChild = true;
-						break;
-						case "only-child":
-							current.firstChild = true;
-							current.lastChild = true;
-						break;
-						case "scope":
-							current.scopeElement = true;
-						break;
-						case "empty":
-							// one with no children
-							current.emptyElement = true;
-						break;
-						case "whitespace-only":
-							current.whitespaceOnly = true;
-						break;
-						case "link":
-							current.attributesPresent ~= "href";
-						break;
-						case "root":
-							current.rootElement = true;
-						break;
-						case "nth-child":
-							current.nthChild ~= ParsedNth(readFunctionalSelector());
-							state = State.SkippingFunctionalSelector;
-						continue;
-						case "nth-of-type":
-							current.nthOfType ~= ParsedNth(readFunctionalSelector());
-							state = State.SkippingFunctionalSelector;
-						continue;
-						case "nth-last-of-type":
-							current.nthLastOfType ~= ParsedNth(readFunctionalSelector());
-							state = State.SkippingFunctionalSelector;
-						continue;
-						case "is":
-							state = State.SkippingFunctionalSelector;
-							current.isSelectors ~= readFunctionalSelector();
-						continue; // now the rest of the parser skips past the parens we just handled
-						case "where":
-							state = State.SkippingFunctionalSelector;
-							current.whereSelectors ~= readFunctionalSelector();
-						continue; // now the rest of the parser skips past the parens we just handled
-						case "not":
-							state = State.SkippingFunctionalSelector;
-							current.notSelectors ~= readFunctionalSelector();
-						continue; // now the rest of the parser skips past the parens we just handled
-						case "has":
-							state = State.SkippingFunctionalSelector;
-							current.hasSelectors ~= readFunctionalSelector();
-						continue; // now the rest of the parser skips past the parens we just handled
-						// back to standards though not quite right lol
-						case "disabled":
-							current.attributesPresent ~= "disabled";
-						break;
-						case "checked":
-							current.attributesPresent ~= "checked";
-						break;
-
-						case "visited", "active", "hover", "target", "focus", "selected":
-							current.attributesPresent ~= "nothing";
-							// FIXME
-						/+
-						// extensions not implemented
-						//case "text": // takes the text in the element and wraps it in an element, returning it
-						+/
-							goto case;
-						case "before", "after":
-							current.attributesPresent ~= "FIXME";
-
-						break;
-						// My extensions
-						case "odd-child":
-							current.oddChild = true;
-						break;
-						case "even-child":
-							current.evenChild = true;
-						break;
-						default:
-							//if(token.indexOf("lang") == -1)
-							//assert(0, token);
-						break;
-					}
-					state = State.Starting;
-				break;
-				case State.SkippingFunctionalSelector:
-					if(token == "(") {
-						parensCount++;
-					} else if(token == ")") {
-						parensCount--;
-					}
-
-					if(parensCount == 0)
-						state = State.Starting;
-				break;
-				case State.ReadingAttributeSelector:
-					attributeName = token;
-					attributeComparison = null;
-					attributeValue = null;
-					state = State.ReadingAttributeComparison;
-				break;
-				case State.ReadingAttributeComparison:
-					// FIXME: these things really should be quotable in the proper lexer...
-					if(token != "]") {
-						if(token.indexOf("=") == -1) {
-							// not a comparison; consider it
-							// part of the attribute
-							attributeValue ~= token;
-						} else {
-							attributeComparison = token;
-							state = State.ReadingAttributeValue;
-						}
-						break;
-					}
-					goto case;
-				case State.ExpectingAttributeCloser:
-					if(token != "]") {
-						// not the closer; consider it part of comparison
-						if(attributeComparison == "")
-							attributeName ~= token;
-						else
-							attributeValue ~= token;
-						break;
-					}
-
-					// Selector operators
-					switch(attributeComparison) {
-						default: assert(0);
-						case "":
-							current.attributesPresent ~= attributeName;
-						break;
-						case "=":
-							current.attributesEqual ~= [attributeName, attributeValue];
-						break;
-						case "|=":
-							current.attributesIncludesSeparatedByDashes ~= [attributeName, attributeValue];
-						break;
-						case "~=":
-							current.attributesIncludesSeparatedBySpaces ~= [attributeName, attributeValue];
-						break;
-						case "$=":
-							current.attributesEndsWith ~= [attributeName, attributeValue];
-						break;
-						case "^=":
-							current.attributesStartsWith ~= [attributeName, attributeValue];
-						break;
-						case "*=":
-							current.attributesInclude ~= [attributeName, attributeValue];
-						break;
-						case "!=":
-							current.attributesNotEqual ~= [attributeName, attributeValue];
-						break;
-					}
-
-					state = State.Starting;
-				break;
-				case State.ReadingAttributeValue:
-					attributeValue = token;
-					state = State.ExpectingAttributeCloser;
-				break;
-			}
+			// there is probably a MUCH better way to do this.
+			auto dummy = SelectorPart.init;
+			dummy.tagNameFilter = "*";
+			dummy.separation = 0;
+			lparts = dummy ~ lparts;
+		+/
 		}
 
-		commit();
+		foreach(part; retro(lparts)) {
 
-		return s;
+			 // writeln("matching ", where, " with ", part, " via ", lastSeparation);
+			 // writeln(parts);
+
+			if(lastSeparation == -1) {
+				if(!part.matchElement(where, relativeTo))
+					return false;
+			} else if(lastSeparation == 0) { // generic parent
+				// need to go up the whole chain
+				where = where.parentNode;
+
+				while(where !is null) {
+					if(part.matchElement(where, relativeTo))
+						break;
+
+					if(where is relativeTo)
+						return false;
+
+					where = where.parentNode;
+				}
+
+				if(where is null)
+					return false;
+			} else if(lastSeparation == 1) { // the > operator
+				where = where.parentNode;
+
+				if(!part.matchElement(where, relativeTo))
+					return false;
+			} else if(lastSeparation == 2) { // the + operator
+			//writeln("WHERE", where, " ", part);
+				where = where.previousSibling("*");
+
+				if(!part.matchElement(where, relativeTo))
+					return false;
+			} else if(lastSeparation == 3) { // the ~ operator
+				where = where.previousSibling("*");
+				while(where !is null) {
+					if(part.matchElement(where, relativeTo))
+						break;
+
+					if(where is relativeTo)
+						return false;
+
+					where = where.previousSibling("*");
+				}
+
+				if(where is null)
+					return false;
+			} else if(lastSeparation == 4) { // my bad idea extension < operator, don't use this anymore
+				// FIXME
+			}
+
+			lastSeparation = part.separation;
+
+			/*
+				/+
+				I commented this to magically make unittest pass and I think the reason it works
+				when commented is that I inject a :scope iff there's a selector at top level now
+				and if not, it follows the (frankly stupid) w3c standard behavior at arbitrary id
+				asduiwh . but me injecting the :scope also acts as a terminating condition.
+
+				tbh this prolly needs like a trillion more tests.
+				+/
+			if(where is relativeTo)
+				return false; // at end of line, if we aren't done by now, the match fails
+			*/
+		}
+		return true; // if we got here, it is a success
 	}
+
+	// the string should NOT have commas. Use parseSelectorString for that instead
+	///.
+	static SelectorComponent fromString(string selector) @safe pure {
+		return parseSelector(lexSelector(selector));
+	}
+}
+
+///.
+SelectorComponent[] parseSelectorString(string selector, bool caseSensitiveTags = true) @safe pure {
+	SelectorComponent[] ret;
+	auto tokens = lexSelector(selector); // this will parse commas too
+	// and now do comma-separated slices (i haz phobosophobia!)
+	int parensCount = 0;
+	while (tokens.length > 0) {
+		size_t end = 0;
+		while (end < tokens.length && (parensCount > 0 || tokens[end] != ",")) {
+			if(tokens[end] == "(") parensCount++;
+			if(tokens[end] == ")") parensCount--;
+			++end;
+		}
+		if (end > 0) ret ~= parseSelector(tokens[0..end], caseSensitiveTags);
+		if (tokens.length-end < 2) break;
+		tokens = tokens[end+1..$];
+	}
+	return ret;
+}
+
+///.
+SelectorComponent parseSelector(string[] tokens, bool caseSensitiveTags = true) @safe pure {
+	SelectorComponent s;
+
+	SelectorPart current;
+	void commit() {
+		// might as well skip null items
+		if(!current.isCleanSlateExceptSeparation()) {
+			s.parts ~= current;
+			current = current.init; // start right over
+		}
+	}
+	enum State {
+		Starting,
+		ReadingClass,
+		ReadingId,
+		ReadingAttributeSelector,
+		ReadingAttributeComparison,
+		ExpectingAttributeCloser,
+		ReadingPseudoClass,
+		ReadingAttributeValue,
+
+		SkippingFunctionalSelector,
+	}
+	State state = State.Starting;
+	string attributeName, attributeValue, attributeComparison;
+	int parensCount;
+	foreach(idx, token; tokens) {
+		string readFunctionalSelector() {
+			string s;
+			if(tokens[idx + 1] != "(")
+				throw new Exception("parse error");
+			int pc = 1;
+			foreach(t; tokens[idx + 2 .. $]) {
+				if(t == "(")
+					pc++;
+				if(t == ")")
+					pc--;
+				if(pc == 0)
+					break;
+				s ~= t;
+			}
+
+			return s;
+		}
+
+		sizediff_t tid = -1;
+		foreach(i, item; selectorTokens)
+			if(token == item) {
+				tid = i;
+				break;
+			}
+		final switch(state) {
+			case State.Starting: // fresh, might be reading an operator or a tagname
+				if(tid == -1) {
+					if(!caseSensitiveTags)
+						token = token.toLower();
+
+					if(current.isCleanSlateExceptSeparation()) {
+						current.tagNameFilter = token;
+						// default thing, see comment under "*" below
+						if(current.separation == -1) current.separation = 0;
+					} else {
+						// if it was already set, we must see two thingies
+						// separated by whitespace...
+						commit();
+						current.separation = 0; // tree
+						current.tagNameFilter = token;
+					}
+				} else {
+					// Selector operators
+					switch(token) {
+						case "*":
+							current.tagNameFilter = "*";
+							// the idea here is if we haven't actually set a separation
+							// yet (e.g. the > operator), it should assume the generic
+							// whitespace (descendant) mode to avoid matching self with -1
+							if(current.separation == -1) current.separation = 0;
+						break;
+						case " ":
+							// If some other separation has already been set,
+							// this is irrelevant whitespace, so we should skip it.
+							// this happens in the case of "foo > bar" for example.
+							if(current.isCleanSlateExceptSeparation() && current.separation > 0)
+								continue;
+							commit();
+							current.separation = 0; // tree
+						break;
+						case ">>":
+							commit();
+							current.separation = 0; // alternate syntax for tree from html5 css
+						break;
+						case ">":
+							commit();
+							current.separation = 1; // child
+						break;
+						case "+":
+							commit();
+							current.separation = 2; // sibling directly after
+						break;
+						case "~":
+							commit();
+							current.separation = 3; // any sibling after
+						break;
+						case "<":
+							commit();
+							current.separation = 4; // immediate parent of
+						break;
+						case "[":
+							state = State.ReadingAttributeSelector;
+							if(current.separation == -1) current.separation = 0;
+						break;
+						case ".":
+							state = State.ReadingClass;
+							if(current.separation == -1) current.separation = 0;
+						break;
+						case "#":
+							state = State.ReadingId;
+							if(current.separation == -1) current.separation = 0;
+						break;
+						case ":":
+						case "::":
+							state = State.ReadingPseudoClass;
+							if(current.separation == -1) current.separation = 0;
+						break;
+
+						default:
+							assert(0, token);
+					}
+				}
+			break;
+			case State.ReadingClass:
+				current.attributesIncludesSeparatedBySpaces ~= ["class", token];
+				state = State.Starting;
+			break;
+			case State.ReadingId:
+				current.attributesEqual ~= ["id", token];
+				state = State.Starting;
+			break;
+			case State.ReadingPseudoClass:
+				switch(token) {
+					case "first-of-type":
+						current.firstOfType = true;
+					break;
+					case "last-of-type":
+						current.lastOfType = true;
+					break;
+					case "only-of-type":
+						current.firstOfType = true;
+						current.lastOfType = true;
+					break;
+					case "first-child":
+						current.firstChild = true;
+					break;
+					case "last-child":
+						current.lastChild = true;
+					break;
+					case "only-child":
+						current.firstChild = true;
+						current.lastChild = true;
+					break;
+					case "scope":
+						current.scopeElement = true;
+					break;
+					case "empty":
+						// one with no children
+						current.emptyElement = true;
+					break;
+					case "whitespace-only":
+						current.whitespaceOnly = true;
+					break;
+					case "link":
+						current.attributesPresent ~= "href";
+					break;
+					case "root":
+						current.rootElement = true;
+					break;
+					case "nth-child":
+						current.nthChild ~= ParsedNth(readFunctionalSelector());
+						state = State.SkippingFunctionalSelector;
+					continue;
+					case "nth-of-type":
+						current.nthOfType ~= ParsedNth(readFunctionalSelector());
+						state = State.SkippingFunctionalSelector;
+					continue;
+					case "nth-last-of-type":
+						current.nthLastOfType ~= ParsedNth(readFunctionalSelector());
+						state = State.SkippingFunctionalSelector;
+					continue;
+					case "is":
+						state = State.SkippingFunctionalSelector;
+						current.isSelectors ~= readFunctionalSelector();
+					continue; // now the rest of the parser skips past the parens we just handled
+					case "where":
+						state = State.SkippingFunctionalSelector;
+						current.whereSelectors ~= readFunctionalSelector();
+					continue; // now the rest of the parser skips past the parens we just handled
+					case "not":
+						state = State.SkippingFunctionalSelector;
+						current.notSelectors ~= readFunctionalSelector();
+					continue; // now the rest of the parser skips past the parens we just handled
+					case "has":
+						state = State.SkippingFunctionalSelector;
+						current.hasSelectors ~= readFunctionalSelector();
+					continue; // now the rest of the parser skips past the parens we just handled
+					// back to standards though not quite right lol
+					case "disabled":
+						current.attributesPresent ~= "disabled";
+					break;
+					case "checked":
+						current.attributesPresent ~= "checked";
+					break;
+
+					case "visited", "active", "hover", "target", "focus", "selected":
+						current.attributesPresent ~= "nothing";
+						// FIXME
+					/+
+					// extensions not implemented
+					//case "text": // takes the text in the element and wraps it in an element, returning it
+					+/
+						goto case;
+					case "before", "after":
+						current.attributesPresent ~= "FIXME";
+
+					break;
+					// My extensions
+					case "odd-child":
+						current.oddChild = true;
+					break;
+					case "even-child":
+						current.evenChild = true;
+					break;
+					default:
+						//if(token.indexOf("lang") == -1)
+						//assert(0, token);
+					break;
+				}
+				state = State.Starting;
+			break;
+			case State.SkippingFunctionalSelector:
+				if(token == "(") {
+					parensCount++;
+				} else if(token == ")") {
+					parensCount--;
+				}
+
+				if(parensCount == 0)
+					state = State.Starting;
+			break;
+			case State.ReadingAttributeSelector:
+				attributeName = token;
+				attributeComparison = null;
+				attributeValue = null;
+				state = State.ReadingAttributeComparison;
+			break;
+			case State.ReadingAttributeComparison:
+				// FIXME: these things really should be quotable in the proper lexer...
+				if(token != "]") {
+					if(token.indexOf("=") == -1) {
+						// not a comparison; consider it
+						// part of the attribute
+						attributeValue ~= token;
+					} else {
+						attributeComparison = token;
+						state = State.ReadingAttributeValue;
+					}
+					break;
+				}
+				goto case;
+			case State.ExpectingAttributeCloser:
+				if(token != "]") {
+					// not the closer; consider it part of comparison
+					if(attributeComparison == "")
+						attributeName ~= token;
+					else
+						attributeValue ~= token;
+					break;
+				}
+
+				// Selector operators
+				switch(attributeComparison) {
+					default: assert(0);
+					case "":
+						current.attributesPresent ~= attributeName;
+					break;
+					case "=":
+						current.attributesEqual ~= [attributeName, attributeValue];
+					break;
+					case "|=":
+						current.attributesIncludesSeparatedByDashes ~= [attributeName, attributeValue];
+					break;
+					case "~=":
+						current.attributesIncludesSeparatedBySpaces ~= [attributeName, attributeValue];
+					break;
+					case "$=":
+						current.attributesEndsWith ~= [attributeName, attributeValue];
+					break;
+					case "^=":
+						current.attributesStartsWith ~= [attributeName, attributeValue];
+					break;
+					case "*=":
+						current.attributesInclude ~= [attributeName, attributeValue];
+					break;
+					case "!=":
+						current.attributesNotEqual ~= [attributeName, attributeValue];
+					break;
+				}
+
+				state = State.Starting;
+			break;
+			case State.ReadingAttributeValue:
+				attributeValue = token;
+				state = State.ExpectingAttributeCloser;
+			break;
+		}
+	}
+
+	commit();
+
+	return s;
+}
 
 ///.
 Element[] removeDuplicates(Element[] input) @safe pure {
