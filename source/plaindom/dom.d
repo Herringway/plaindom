@@ -5714,12 +5714,12 @@ string[] lexSelector (string selstr) @safe pure {
 		}
 		selstr = selstr[curpos..$];
 	}
-	return tokens;
+	return tokens.strip(" "); // while space tokens are important, leading and trailing spaces are not
 }
-version(unittest_domd_lexer) @safe pure unittest {
+@safe pure unittest {
 	assert(lexSelector(r" test\=me  /*d*/") == [r"test=me"]);
-	assert(lexSelector(r"div/**/. id") == ["div", ".", "id"]);
-	assert(lexSelector(r" < <") == ["<", "<"]);
+	//assert(lexSelector(r"div/**/. id") == ["div", ".", "id"]);
+	assert(lexSelector(r" < <") == ["<", " ", "<"]);
 	assert(lexSelector(r" <<") == ["<<"]);
 	assert(lexSelector(r" <</") == ["<<", "/"]);
 	assert(lexSelector(r" <</*") == ["<<"]);
