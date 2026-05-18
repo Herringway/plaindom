@@ -58,6 +58,7 @@ import std.range;
 import std.stdio;
 import std.string;
 import std.uri;
+import std.uni;
 import std.utf;
 
 // FIXME: support the css standard namespace thing in the selectors too
@@ -5967,18 +5968,11 @@ int intFromHex(string hex) @safe pure {
 				}
 			}
 
-			bool matchWithSeparator(string attr, string value, string separator) {
-				foreach(s; attr.split(separator))
-					if(s == value)
-						return true;
-				return false;
-			}
-
 			foreach(a; attributesPresent)
 				if(a !in e.attributes)
 					return false;
 			foreach(a; attributesEqual)
-				if(a[0] !in e.attributes || e.attributes[a[0]] != a[1])
+				if(e.getAttribute(a[0]) != a[1])
 					return false;
 			foreach(a; attributesNotEqual)
 				// FIXME: maybe it should say null counts... this just bit me.
@@ -5989,19 +5983,19 @@ int intFromHex(string hex) @safe pure {
 				if(e.getAttribute(a[0]) == a[1])
 					return false;
 			foreach(a; attributesInclude)
-				if(a[0] !in e.attributes || (e.attributes[a[0]].indexOf(a[1]) == -1))
+				if(e.getAttribute(a[0]).indexOf(a[1]) == -1)
 					return false;
 			foreach(a; attributesStartsWith)
-				if(a[0] !in e.attributes || !e.attributes[a[0]].startsWith(a[1]))
+				if(!e.getAttribute(a[0]).startsWith(a[1]))
 					return false;
 			foreach(a; attributesEndsWith)
-				if(a[0] !in e.attributes || !e.attributes[a[0]].endsWith(a[1]))
+				if(!e.getAttribute(a[0]).endsWith(a[1]))
 					return false;
 			foreach(a; attributesIncludesSeparatedBySpaces)
-				if(a[0] !in e.attributes || !matchWithSeparator(e.attributes[a[0]], a[1], " "))
+				if(!e.getAttribute(a[0]).splitter!isWhite.canFind(a[1]))
 					return false;
 			foreach(a; attributesIncludesSeparatedByDashes)
-				if(a[0] !in e.attributes || !matchWithSeparator(e.attributes[a[0]], a[1], "-"))
+				if(!e.getAttribute(a[0]).splitter("-").canFind(a[1]))
 					return false;
 			foreach(a; hasSelectors) {
 				if(e.querySelector(a) is null)
@@ -7767,19 +7761,19 @@ private bool isSimpleWhite(dchar c) @safe pure {
                 </div>
 		<div id=\"empty\"></div>
 		<div id=\"empty-but-text\">test</div>
+		<div class=\"class\nclass-with-newlines\">test2</div>
         </body>
 </html>");
 
 	auto doc = document;
 
-	{
-	auto empty = doc.requireElementById("empty");
-	assert(empty.querySelector(" > *") is null, empty.querySelector(" > *").toString);
+	with(doc.requireElementById("empty")) {
+		assert(querySelector(" > *") is null, querySelector(" > *").toString);
 	}
-	{
-	auto empty = doc.requireElementById("empty-but-text");
-	assert(empty.querySelector(" > *") is null, empty.querySelector(" > *").toString);
+	with(doc.requireElementById("empty-but-text")) {
+		assert(querySelector(" > *") is null, querySelector(" > *").toString);
 	}
+	assert(doc.querySelector("div.class-with-newlines") !is null);
 
 	assert(doc.querySelectorAll("div div").length == 2);
 	assert(doc.querySelector("div").querySelectorAll("div").length == 2);
