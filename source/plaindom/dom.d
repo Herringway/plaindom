@@ -1247,8 +1247,8 @@ class Document : DomParent {
 		if(!e) {
 			e = createElement("title");
 			auto heads = getElementsByTagName("head");
-			if(heads.length)
-				heads[0].appendChild(e);
+			if (!heads.empty)
+				heads.front.appendChild(e);
 		}
 
 		if(e)
@@ -1323,14 +1323,10 @@ class Document : DomParent {
 	}
 
 	/// ditto
-	Element[] getElementsByTagName(string tag) @safe pure {
-		return root.getElementsByTagName(tag);
-	}
+	auto getElementsByTagName(string tag) @safe pure => root.getElementsByTagName(tag);
 
 	/// ditto
-	Element[] getElementsByClassName(string tag) @safe pure {
-		return root.getElementsByClassName(tag);
-	}
+	auto getElementsByClassName(string tag) @safe pure => root.getElementsByClassName(tag);
 
 	/** FIXME: btw, this could just be a lazy range...... */
 	Element getFirstElementByTagName(string tag) @safe pure {
@@ -2667,20 +2663,15 @@ class Element : DomParent {
 
 		So these is incompatible with Javascript in the face of live dom mutation and will likely remain so.
 	+/
-	Element[] getElementsByClassName(string cn) @safe pure {
-		// is this correct?
-		return getElementsBySelector("." ~ cn);
-	}
+	// is this correct?
+	auto getElementsByClassName(string cn) @safe pure => getElementsBySelector("." ~ cn);
 
 	/// ditto
-	Element[] getElementsByTagName(string tag) @safe pure {
-		if(parentDocument && parentDocument.loose)
+	auto getElementsByTagName(string tag) @safe pure {
+		if(parentDocument && parentDocument.loose) {
 			tag = tag.toLower();
-		Element[] ret;
-		foreach(e; tree)
-			if(e.tagName == tag)
-				ret ~= e;
-		return ret;
+		}
+		return tree.filter!(e => e.tagName == tag);
 	}
 
 
