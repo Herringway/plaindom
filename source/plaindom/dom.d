@@ -5305,29 +5305,22 @@ class Table : Element {
 	/// This is kinda expensive so you should call once when you want the grid,
 	/// then do lookups on the returned array.
 	TableCell[][] getGrid(Element tablePortition = null) @safe pure
-		in {
+	in {
 			if(tablePortition is null)
 				assert(tablePortition is null);
 			else {
 				assert(tablePortition !is null);
 				assert(tablePortition.parentNode is this);
-				assert(
-					tablePortition.tagName == "tbody"
-					||
-					tablePortition.tagName == "tfoot"
-					||
-					tablePortition.tagName == "thead"
-				);
+				assert(tablePortition.tagName.among("tbody", "tfoot", "thead"));
 			}
-		}
-	do {
+	} do {
 		if(tablePortition is null)
 			tablePortition = this;
 
 		TableCell[][] ret;
 
 		// FIXME: will also return rows of sub tables!
-		auto rows = tablePortition.getElementsByTagName("tr");
+		auto rows = tablePortition.getElementsByTagName("tr").array;
 		ret.length = rows.length;
 
 		int maxLength = 0;
