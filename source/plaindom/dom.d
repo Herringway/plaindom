@@ -5133,27 +5133,6 @@ class Form : Element {
 		foreach(e; getField(name))
 			e.parentNode.removeChild(e);
 	}
-
-	/+
-	/// Returns all form members.
-	@property Element[] elements() {
-
-	}
-
-	///.
-	string opDispatch(string name)(string v = null)
-		// filter things that should actually be attributes on the form
-		if( name != "method" && name != "action" && name != "enctype"
-		 && name != "style"  && name != "name" && name != "id" && name != "class")
-	{
-
-	}
-	+/
-/+
-	void submit() {
-		// take its elements and submit them through http
-	}
-+/
 }
 
 
